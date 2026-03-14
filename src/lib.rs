@@ -41,7 +41,7 @@ pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppErr
 pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
     // Open the database
     let db = db::open(config.clone())?; // Clone config for search index init
-    // Initialise the search index
+                                        // Initialise the search index
     let search_index =
         initialise_search_index(&config).map_err(|e| AppError::Search(e.to_string()))?;
 
@@ -67,7 +67,12 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             }
             for r in &records {
                 if verbose {
-                    println!("[{}] {} — {}", r.created_at, r.path, ocr::truncate(&r.content, 80));
+                    println!(
+                        "[{}] {} — {}",
+                        r.created_at,
+                        r.path,
+                        ocr::truncate(&r.content, 80)
+                    );
                 } else {
                     println!("{}", r.path);
                 }
@@ -89,7 +94,10 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                         colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
                         return Ok(());
                     }
-                    colours::info(&format!("Loaded {} records — launching fuzzy finder…", records.len()));
+                    colours::info(&format!(
+                        "Loaded {} records — launching fuzzy finder…",
+                        records.len()
+                    ));
                     match search::interactive_search(&records) {
                         Some(idx) => {
                             let r = &records[idx];
@@ -165,13 +173,11 @@ fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), 
 
 /// Read the image from disk and open the egui viewer window.
 fn launch_viewer(path: &str, text: String) -> Result<(), AppError> {
-    let image_bytes = std::fs::read(path).map_err(|e| {
-        AppError::GuiError(format!("Failed to read image {}: {}", path, e))
-    })?;
+    let image_bytes = std::fs::read(path)
+        .map_err(|e| AppError::GuiError(format!("Failed to read image {}: {}", path, e)))?;
 
     colours::info(&format!("Opening viewer for: {}", path));
     let v = viewer::ShotViewer::new(path, text, image_bytes);
-    v.launch()
-        .map_err(|e| AppError::GuiError(e.to_string()))?;
+    v.launch().map_err(|e| AppError::GuiError(e.to_string()))?;
     Ok(())
 }
