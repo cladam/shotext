@@ -14,6 +14,7 @@ mod indexer;
 pub mod ingest;
 pub mod ocr;
 pub mod search;
+pub mod viewer;
 
 /// Initialise or open the Tantivy search index located at the specified path.
 pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppError> {
@@ -40,7 +41,7 @@ pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppErr
 pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
     // Open the database
     let db = db::open(config.clone())?; // Clone config for search index init
-                                        // Initialise the search index
+    // Initialise the search index
     let search_index =
         initialise_search_index(&config).map_err(|e| AppError::Search(e.to_string()))?;
 
@@ -73,10 +74,7 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                         colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
                         return Ok(());
                     }
-                    colours::info(&format!(
-                        "Loaded {} records — launching fuzzy finder…",
-                        records.len()
-                    ));
+                    colours::info(&format!("Loaded {} records — launching fuzzy finder…", records.len()));
                     match search::interactive_search(&records) {
                         Some(idx) => search::print_detail(&records[idx]),
                         None => colours::info("Search cancelled."),
@@ -86,8 +84,16 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             Ok(())
         }
         Commands::View { target } => {
-            // TODO: implement view logic
-            colours::info(&format!("View called for target: {}", target));
+            let (path, text) = resolve_view_target(&target, &db)?;
+
+            let image_bytes = std::fs::read(&path).map_err(|e| {
+                AppError::GuiError(format!("Failed to read image {}: {}", path, e))
+            })?;
+
+            colours::info(&format!("Opening viewer for: {}", path));
+            let v = viewer::ShotViewer::new(&path, text, image_bytes);
+            v.launch()
+                .map_err(|e| AppError::GuiError(e.to_string()))?;
             Ok(())
         }
         Commands::Config { edit } => {
@@ -106,4 +112,43 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             Ok(())
         }
     }
+}
+
+/// Resolve a view target to a `(file_path, extracted_text)` pair.
+///
+/// The target can be:
+/// - A file path to a PNG (hashes the file and looks up text in sled)
+/// - A blake3 hash (looks up the record directly in sled)
+fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), AppError> {
+    let path = std::path::Path::new(target);
+
+    // 1. Try as a file path
+    if path.exists() && path.is_file() {
+        let bytes = std::fs::read(path)?;
+        let hash = blake3::hash(&bytes).to_hex().to_string();
+
+        if let Some(val) = db.get(hash.as_bytes())? {
+            let record: ingest::ShotRecord = serde_json::from_slice(&val)
+                .map_err(|e| AppError::Database(format!("Corrupt record: {}", e)))?;
+            return Ok((target.to_string(), record.content));
+        }
+
+        // File exists but hasn't been indexed yet
+        return Ok((
+            target.to_string(),
+            "(not yet indexed — run `shotext ingest` first)".to_string(),
+        ));
+    }
+
+    // 2. Try as a blake3 hash
+    if let Some(val) = db.get(target.as_bytes())? {
+        let record: ingest::ShotRecord = serde_json::from_slice(&val)
+            .map_err(|e| AppError::Database(format!("Corrupt record: {}", e)))?;
+        return Ok((record.path, record.content));
+    }
+
+    Err(AppError::GuiError(format!(
+        "Target not found: '{}' — provide a file path or a known hash",
+        target
+    )))
 }
