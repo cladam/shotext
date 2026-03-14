@@ -31,7 +31,13 @@ pub enum Commands {
         query: Option<String>,
     },
 
-    /// Initialize or show current configuration
+    /// View the screenshot along with the extracted text
+    View {
+        /// The hash or path of the screenshot to open in the GUI
+        target: String,
+    },
+
+    /// Initialise or show current configuration
     Config {
         #[arg(short, long)]
         edit: bool,
