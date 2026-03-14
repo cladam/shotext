@@ -40,6 +40,15 @@ cargo build --release
 # The binary is at target/release/shotext
 ```
 
+#### Installing from crates.io
+
+The easiest way to install `shotext` is to download it from [crates.io](https://crates.io/crates/shotext). You can do it
+using the following command:
+
+```bash
+cargo install choreo
+```
+
 ## Quick Start
 
 ```bash

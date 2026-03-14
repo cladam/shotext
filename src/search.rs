@@ -186,7 +186,7 @@ pub fn interactive_search(results: &[SearchResult]) -> Option<usize> {
     let item_reader = SkimItemReader::default();
     let items = item_reader.of_bufread(Cursor::new(input));
 
-    let output = Skim::run_with(options, Some(items)).ok()?;
+    let output = Skim::run_with(&options, Some(items))?;
     if output.is_abort {
         return None;
     }

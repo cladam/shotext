@@ -70,9 +70,9 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-13          # last Intel runner — native build, no cross-compile
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-latest      # ARM (Apple Silicon) runner
           - target: x86_64-pc-windows-msvc
             os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -92,7 +92,7 @@ jobs:
           sudo apt-get install -y libleptonica-dev libtesseract-dev clang pkg-config
 
       - name: Install system dependencies (macOS)
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos')
         run: brew install tesseract leptonica pkg-config
 
       - name: Install aarch64 linker (for cross-compiling on Ubuntu)
