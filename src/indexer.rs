@@ -1,6 +1,6 @@
 use sled::Db;
-use tantivy::{Index, IndexWriter, schema::*};
 use std::path::Path;
+use tantivy::{schema::*, Index, IndexWriter};
 
 pub struct ShotIndexer {
     kv_store: Db,
@@ -23,7 +23,8 @@ impl ShotIndexer {
         let schema = schema_builder.build();
 
         std::fs::create_dir_all(index_path)?;
-        let index = Index::open_or_create(tantivy::directory::MmapDirectory::open(index_path)?, schema)?;
+        let index =
+            Index::open_or_create(tantivy::directory::MmapDirectory::open(index_path)?, schema)?;
         let writer = index.writer(50_000_000)?; // 50MB heap
 
         Ok(Self {

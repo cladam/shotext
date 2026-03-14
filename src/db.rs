@@ -11,12 +11,7 @@ use tantivy::{Index, IndexWriter, TantivyDocument};
 pub fn open(config: Config) -> Result<Db, AppError> {
     let db_path = match env::var("SHOTEXT_DB_PATH") {
         Ok(path_str) => PathBuf::from(path_str),
-        Err(_) => config.db_path.clone().unwrap_or_else(|| {
-            // Default path logic
-            let mut path = dirs::home_dir().expect("Could not find home directory.");
-            path.push(".shotext/shotext_db");
-            path
-        }),
+        Err(_) => config.paths.database.clone(),
     };
 
     // Ensure the parent directory exists.
@@ -30,4 +25,3 @@ pub fn open(config: Config) -> Result<Db, AppError> {
 pub fn key_exists(db: &Db, key: &str) -> Result<bool, AppError> {
     db.contains_key(key).map_err(AppError::from)
 }
-
