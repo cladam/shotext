@@ -1,7 +1,5 @@
 use clap::Parser;
-use shotext::config::Config;
-use shotext::error::AppError;
-use shotext::{colours, config, db, initialise_search_index, run, Cli};
+use shotext::{colours, config, run, Cli};
 
 /// Main entry point for shotext
 /// The application logic is contained in lib.rs, and this file is a thin wrapper responsible

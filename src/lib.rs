@@ -10,7 +10,6 @@ pub mod colours;
 pub mod config;
 pub mod db;
 pub mod error;
-mod indexer;
 pub mod ingest;
 pub mod ocr;
 pub mod search;
@@ -65,16 +64,50 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                 colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
                 return Ok(());
             }
+
+            colours::info(&format!("{} indexed screenshots\n", records.len()));
+
+            // Header
+            if verbose {
+                println!(
+                    "{:<64}  {:<16}  {}",
+                    "HASH", "DATE", "PATH"
+                );
+                println!("{}", "─".repeat(120));
+            } else {
+                println!(
+                    "{:<12}  {:<16}  {:<60}  {}",
+                    "HASH", "DATE", "PATH", "TEXT"
+                );
+                println!("{}", "─".repeat(120));
+            }
+
             for r in &records {
+                let file_name = std::path::Path::new(&r.path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&r.path);
+
                 if verbose {
                     println!(
-                        "[{}] {} — {}",
-                        r.created_at,
-                        r.path,
-                        ocr::truncate(&r.content, 80)
+                        "{:<64}  {:<16}  {}",
+                        r.hash, r.created_at, r.path
                     );
+                    let snippet = ocr::truncate(&r.content, 200).replace('\n', " ");
+                    if !snippet.is_empty() {
+                        println!("  └─ {}", snippet);
+                    }
                 } else {
-                    println!("{}", r.path);
+                    let short_hash = if r.hash.len() > 10 {
+                        &r.hash[..10]
+                    } else {
+                        &r.hash
+                    };
+                    let snippet = ocr::truncate(&r.content, 40).replace('\n', " ");
+                    println!(
+                        "{:<12}  {:<16}  {:<60}  {}",
+                        short_hash, r.created_at, file_name, snippet
+                    );
                 }
             }
             Ok(())

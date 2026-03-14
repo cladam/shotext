@@ -1,11 +1,8 @@
-use crate::colours::warn;
 use crate::config::Config;
 use crate::error::AppError;
-use serde_json;
 use sled::Db;
 use std::path::PathBuf;
 use std::{env, fs, str};
-use tantivy::{Index, IndexWriter, TantivyDocument};
 
 // Helper function to open the database
 pub fn open(config: Config) -> Result<Db, AppError> {
