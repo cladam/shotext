@@ -69,16 +69,10 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
 
             // Header
             if verbose {
-                println!(
-                    "{:<64}  {:<16}  {}",
-                    "HASH", "DATE", "PATH"
-                );
+                println!("{:<64}  {:<16}  {}", "HASH", "DATE", "PATH");
                 println!("{}", "─".repeat(120));
             } else {
-                println!(
-                    "{:<12}  {:<16}  {:<60}  {}",
-                    "HASH", "DATE", "PATH", "TEXT"
-                );
+                println!("{:<12}  {:<16}  {:<60}  {}", "HASH", "DATE", "PATH", "TEXT");
                 println!("{}", "─".repeat(120));
             }
 
@@ -89,10 +83,7 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                     .unwrap_or(&r.path);
 
                 if verbose {
-                    println!(
-                        "{:<64}  {:<16}  {}",
-                        r.hash, r.created_at, r.path
-                    );
+                    println!("{:<64}  {:<16}  {}", r.hash, r.created_at, r.path);
                     let snippet = ocr::truncate(&r.content, 200).replace('\n', " ");
                     if !snippet.is_empty() {
                         println!("  └─ {}", snippet);
