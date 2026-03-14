@@ -21,9 +21,10 @@ serde_json = "1.0.149"
 
 # OCR & Image
 tesseract = "0.15.2"
-image = "0.25.10" # Useful for pre-processing Mac Retina screenshots
 blake3 = "1.8.3" # Fast hashing for sled keys
-
+eframe = "0.33.3"
+egui_extras = { version = "*", features = ["all_loaders"] }
+image = { version = "0.25.10", features = ["jpeg", "png"] }
 sled = "0.34.7"
 tantivy = "0.25.0"
 notify = "9.0.0-rc.2"

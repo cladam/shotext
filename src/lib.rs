@@ -46,7 +46,7 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
 
     match cli.command {
         Commands::Ingest { force } => {
-            let report = ingest::run(&config, &db, force)?;
+            let report = ingest::run(&config, &db, &search_index, force)?;
             colours::info(&format!(
                 "\nDone — {} found, {} new, {} skipped, {} errors",
                 report.found, report.new, report.skipped, report.errors
@@ -59,9 +59,27 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             Ok(())
         }
         Commands::Search { query } => {
-            // TODO: implement search logic
-            let q = query.unwrap_or_default();
-            colours::info(&format!("Search called with query: {}", q));
+            match query {
+                Some(q) if !q.is_empty() => {
+                    // Tantivy full-text search
+                    colours::info(&format!("Searching for: \"{}\"", q));
+                    let results = search::query(&search_index, &q, 20)?;
+                    search::print_results(&results);
+                }
+                _ => {
+                    // Interactive skim fuzzy search over all ingested records
+                    let records = search::all_records(&db);
+                    if records.is_empty() {
+                        colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
+                        return Ok(());
+                    }
+                    colours::info(&format!("Loaded {} records — launching fuzzy finder…", records.len()));
+                    match search::interactive_search(&records) {
+                        Some(idx) => search::print_detail(&records[idx]),
+                        None => colours::info("Search cancelled."),
+                    }
+                }
+            }
             Ok(())
         }
         Commands::View { target } => {

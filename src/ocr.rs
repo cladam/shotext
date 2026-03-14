@@ -12,9 +12,15 @@ pub fn extract_text(path: &str, language: &str) -> anyhow::Result<String> {
 
 /// Return at most `max_chars` characters, appending "…" if truncated.
 pub fn truncate(text: &str, max_chars: usize) -> String {
-    if text.len() <= max_chars {
+    let char_count = text.chars().count();
+    if char_count <= max_chars {
         text.to_string()
     } else {
-        format!("{}…", &text[..max_chars])
+        let end = text
+            .char_indices()
+            .nth(max_chars)
+            .map(|(i, _)| i)
+            .unwrap_or(text.len());
+        format!("{}…", &text[..end])
     }
 }

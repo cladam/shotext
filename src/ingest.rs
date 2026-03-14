@@ -12,6 +12,7 @@ use crate::config::Config;
 use crate::db;
 use crate::error::AppError;
 use crate::ocr;
+use crate::search;
 
 /// Metadata stored in sled for each ingested screenshot.
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,7 +36,12 @@ pub struct IngestReport {
 /// When `force` is true every file is treated as new (the hash check is skipped).
 ///
 /// OCR is **not** performed yet — this only discovers and deduplicates files.
-pub fn run(config: &Config, db: &Db, force: bool) -> Result<IngestReport, AppError> {
+pub fn run(
+    config: &Config,
+    db: &Db,
+    index: &tantivy::Index,
+    force: bool,
+) -> Result<IngestReport, AppError> {
     let screenshots_dir = &config.paths.screenshots;
 
     if !screenshots_dir.exists() {
@@ -52,6 +58,10 @@ pub fn run(config: &Config, db: &Db, force: bool) -> Result<IngestReport, AppErr
         "Scanning {} for PNG files…",
         screenshots_dir.display()
     ));
+
+    // Create one Tantivy writer for the entire ingest run
+    let mut tantivy_writer =
+        search::writer(index).map_err(|e| AppError::Search(e.to_string()))?;
 
     let mut report = IngestReport {
         found: 0,
@@ -119,7 +129,7 @@ pub fn run(config: &Config, db: &Db, force: bool) -> Result<IngestReport, AppErr
 
         // Build a record and persist as JSON in sled
         let record = ShotRecord {
-            path: path_str,
+            path: path_str.clone(),
             content: content.clone(),
             created_at: date_str.clone(),
         };
@@ -136,6 +146,22 @@ pub fn run(config: &Config, db: &Db, force: bool) -> Result<IngestReport, AppErr
             continue;
         }
 
+        // Also index in Tantivy for full-text search
+        if let Err(e) = search::index_document(
+            &tantivy_writer,
+            &hash,
+            &path_str,
+            &content,
+            &date_str,
+        ) {
+            colours::warn(&format!(
+                "  ✗ Search index failed for {}: {}",
+                path.display(),
+                e
+            ));
+            // Non-fatal — sled record was already written
+        }
+
         let snippet = ocr::truncate(&content, 60);
         colours::success(&format!(
             "  ✔ {} ({}) — \"{}\"",
@@ -145,6 +171,11 @@ pub fn run(config: &Config, db: &Db, force: bool) -> Result<IngestReport, AppErr
         ));
         report.new += 1;
     }
+
+    // Commit the Tantivy writer once at the end
+    tantivy_writer
+        .commit()
+        .map_err(|e| AppError::Search(e.to_string()))?;
 
     Ok(report)
 }
