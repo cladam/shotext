@@ -3,6 +3,7 @@ use std::path::Path;
 
 use blake3;
 use chrono::{DateTime, Local, NaiveDateTime};
+use serde::{Deserialize, Serialize};
 use sled::Db;
 use walkdir::WalkDir;
 
@@ -10,6 +11,15 @@ use crate::colours;
 use crate::config::Config;
 use crate::db;
 use crate::error::AppError;
+use crate::ocr;
+
+/// Metadata stored in sled for each ingested screenshot.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ShotRecord {
+    pub path: String,
+    pub content: String,
+    pub created_at: String,
+}
 
 /// Result summary returned after an ingest run.
 pub struct IngestReport {
@@ -94,23 +104,44 @@ pub fn run(config: &Config, db: &Db, force: bool) -> Result<IngestReport, AppErr
             }
         }
 
-        // --- placeholder: OCR + indexing will happen here later ---
+        // --- OCR: extract text from the image ---
+        let path_str = path.to_string_lossy().to_string();
+        let content = match ocr::extract_text(&path_str, &config.ocr.language) {
+            Ok(text) => text,
+            Err(e) => {
+                colours::warn(&format!("  ✗ OCR failed for {}: {}", path.display(), e));
+                report.errors += 1;
+                continue;
+            }
+        };
 
-        // For now, just mark the file as "seen" in sled so the next run skips it.
-        // We store the original path as the value — handy for debugging.
-        if let Err(e) = db.insert(hash.as_bytes(), path.to_string_lossy().as_bytes()) {
-            colours::warn(&format!("  ✗ DB insert failed for {}: {}", path.display(), e));
+        let date_str = screenshot_date(path).unwrap_or_else(|| "unknown date".into());
+
+        // Build a record and persist as JSON in sled
+        let record = ShotRecord {
+            path: path_str,
+            content: content.clone(),
+            created_at: date_str.clone(),
+        };
+        let json = serde_json::to_vec(&record)
+            .map_err(|e| AppError::Database(format!("Failed to serialize record: {}", e)))?;
+
+        if let Err(e) = db.insert(hash.as_bytes(), json) {
+            colours::warn(&format!(
+                "  ✗ DB insert failed for {}: {}",
+                path.display(),
+                e
+            ));
             report.errors += 1;
             continue;
         }
 
-        let date_str = screenshot_date(path)
-            .unwrap_or_else(|| "unknown date".into());
-
+        let snippet = ocr::truncate(&content, 60);
         colours::success(&format!(
-            "  ✔ {} ({})",
+            "  ✔ {} ({}) — \"{}\"",
             path.display(),
             date_str,
+            snippet,
         ));
         report.new += 1;
     }
@@ -167,8 +198,3 @@ fn parse_macos_screenshot_name(path: &Path) -> Option<NaiveDateTime> {
     let combined = format!("{} {}", parts[0], parts[1].replace('.', ":"));
     NaiveDateTime::parse_from_str(&combined, "%Y-%m-%d %H:%M:%S").ok()
 }
-
-
-
-
-

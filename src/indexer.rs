@@ -77,7 +77,7 @@ impl ShotIndexer {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
         Ok(tantivy::DateTime::from_timestamp_secs(
-            duration.as_secs() as i64,
+            duration.as_secs() as i64
         ))
     }
 }

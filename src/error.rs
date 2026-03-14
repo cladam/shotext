@@ -34,4 +34,7 @@ pub enum AppError {
 
     #[error("GUI error: {0}")]
     GuiError(String),
+
+    #[error("OCR error: {0}")]
+    Ocr(String),
 }
