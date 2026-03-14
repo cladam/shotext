@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::error::AppError;
-use std::path::PathBuf;
 use std::env;
+use std::path::PathBuf;
 
 pub use cli::{Cli, Commands};
 
