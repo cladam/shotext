@@ -175,12 +175,66 @@ pub fn run(
     Ok(report)
 }
 
+/// Process a single PNG file: hash → dedup → OCR → sled + Tantivy.
+///
+/// This is the shared logic used by both `ingest` (batch) and `watch` (live).
+/// The caller must supply a pre-created Tantivy `IndexWriter` and commit
+/// it themselves after one or more calls.
+pub fn process_single_file(
+    path: &Path,
+    config: &Config,
+    db: &Db,
+    tantivy_writer: &tantivy::IndexWriter,
+) -> Result<(), AppError> {
+    if !is_png(path) {
+        return Ok(());
+    }
+
+    let hash = hash_file(path)?;
+
+    // Dedup
+    if db::key_exists(db, &hash)? {
+        colours::info(&format!("  ⏭ Already indexed: {}", path.display()));
+        return Ok(());
+    }
+
+    // OCR
+    let path_str = path.to_string_lossy().to_string();
+    let content = ocr::extract_text(&path_str, &config.ocr.language)
+        .map_err(|e| AppError::Ocr(format!("{}: {}", path.display(), e)))?;
+
+    let date_str = screenshot_date(path).unwrap_or_else(|| "unknown date".into());
+
+    // Persist to sled
+    let record = ShotRecord {
+        path: path_str.clone(),
+        content: content.clone(),
+        created_at: date_str.clone(),
+    };
+    let json = serde_json::to_vec(&record)
+        .map_err(|e| AppError::Database(format!("Failed to serialize: {}", e)))?;
+    db.insert(hash.as_bytes(), json)?;
+
+    // Index in Tantivy
+    search::index_document(tantivy_writer, &hash, &path_str, &content, &date_str)?;
+
+    let snippet = ocr::truncate(&content, 60);
+    colours::success(&format!(
+        "  ✔ {} ({}) — \"{}\"",
+        path.display(),
+        date_str,
+        snippet,
+    ));
+
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /// Returns `true` if the path has a `.png` extension (case-insensitive).
-fn is_png(path: &Path) -> bool {
+pub fn is_png(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.eq_ignore_ascii_case("png"))
@@ -188,7 +242,7 @@ fn is_png(path: &Path) -> bool {
 }
 
 /// Hash an entire file with blake3 and return the hex digest.
-fn hash_file(path: &Path) -> Result<String, AppError> {
+pub fn hash_file(path: &Path) -> Result<String, AppError> {
     let bytes = fs::read(path)?;
     let hash = blake3::hash(&bytes);
     Ok(hash.to_hex().to_string())
@@ -198,7 +252,7 @@ fn hash_file(path: &Path) -> Result<String, AppError> {
 ///
 /// 1. Try parsing the macOS filename convention: `Screenshot YYYY-MM-DD at HH.MM.SS`
 /// 2. Fall back to the file's mtime (displayed in local time via chrono).
-fn screenshot_date(path: &Path) -> Option<String> {
+pub fn screenshot_date(path: &Path) -> Option<String> {
     // Try the filename first
     if let Some(dt) = parse_macos_screenshot_name(path) {
         return Some(dt.format("%Y-%m-%d %H:%M").to_string());

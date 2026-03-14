@@ -14,6 +14,7 @@ pub mod ingest;
 pub mod ocr;
 pub mod search;
 pub mod viewer;
+pub mod watch;
 
 /// Initialise or open the Tantivy search index located at the specified path.
 pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppError> {
@@ -54,25 +55,26 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             Ok(())
         }
         Commands::Watch => {
-            // TODO: implement watch logic
-            colours::info("Watch mode started (not yet implemented)");
+            watch::run(&config, &db, &search_index)?;
             Ok(())
         }
         Commands::List { verbose } => {
-            let records = search::all_records(&db);
+            let mut records = search::all_records(&db);
             if records.is_empty() {
                 colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
                 return Ok(());
             }
 
+            records.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+
             colours::info(&format!("{} indexed screenshots\n", records.len()));
 
             // Header
             if verbose {
-                println!("{:<64}  {:<16}  {}", "HASH", "DATE", "PATH");
+                println!("{:<12}  {:<16}  {:<60}  {}", "HASH", "DATE", "PATH", "TEXT");
                 println!("{}", "─".repeat(120));
             } else {
-                println!("{:<12}  {:<16}  {:<60}  {}", "HASH", "DATE", "PATH", "TEXT");
+                println!("{:<64}  {:<16}  {}", "HASH", "DATE", "PATH");
                 println!("{}", "─".repeat(120));
             }
 
@@ -84,21 +86,12 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
 
                 if verbose {
                     println!("{:<64}  {:<16}  {}", r.hash, r.created_at, r.path);
-                    let snippet = ocr::truncate(&r.content, 200).replace('\n', " ");
+                    let snippet = ocr::truncate(&r.content, 75).replace('\n', " ");
                     if !snippet.is_empty() {
                         println!("  └─ {}", snippet);
                     }
                 } else {
-                    let short_hash = if r.hash.len() > 10 {
-                        &r.hash[..10]
-                    } else {
-                        &r.hash
-                    };
-                    let snippet = ocr::truncate(&r.content, 40).replace('\n', " ");
-                    println!(
-                        "{:<12}  {:<16}  {:<60}  {}",
-                        short_hash, r.created_at, file_name, snippet
-                    );
+                    println!("{:<64}  {:<16}  {:<60}", r.hash, r.created_at, file_name);
                 }
             }
             Ok(())
