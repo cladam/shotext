@@ -25,6 +25,13 @@ pub enum Commands {
     /// Start a background watcher for new screenshots
     Watch,
 
+    /// List all indexed screenshots
+    List {
+        /// Show date and text snippet alongside the path
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
     /// Search through indexed screenshots using fuzzy find
     Search {
         /// The search query for Tantivy

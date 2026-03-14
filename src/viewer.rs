@@ -56,25 +56,28 @@ impl eframe::App for ShotViewer {
 
             ui.columns(2, |columns| {
                 // ── Left: Screenshot ──
-                columns[0].vertical_centered(|ui| {
-                    ui.strong("Screenshot");
-                    ui.separator();
-                    egui::ScrollArea::both()
-                        .max_height(panel_height - 50.0)
-                        .show(ui, |ui| {
-                            ui.add(
-                                egui::Image::from_bytes(
-                                    self.image_uri.clone(),
-                                    self.image_bytes.clone(),
-                                )
-                                .max_width(ui.available_width())
-                                .shrink_to_fit(),
-                            );
-                        });
+                columns[0].push_id("image_pane", |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.strong("Screenshot");
+                        ui.separator();
+                        egui::ScrollArea::both()
+                            .id_salt("image_scroll")
+                            .max_height(panel_height - 50.0)
+                            .show(ui, |ui| {
+                                ui.add(
+                                    egui::Image::from_bytes(
+                                        self.image_uri.clone(),
+                                        self.image_bytes.clone(),
+                                    )
+                                    .max_width(ui.available_width())
+                                    .shrink_to_fit(),
+                                );
+                            });
+                    });
                 });
 
                 // ── Right: Extracted Text ──
-                columns[1].vertical(|ui| {
+                columns[1].push_id("text_pane", |ui| {
                     ui.horizontal(|ui| {
                         ui.strong("OCR Extracted Text");
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -85,6 +88,7 @@ impl eframe::App for ShotViewer {
                     });
                     ui.separator();
                     egui::ScrollArea::vertical()
+                        .id_salt("text_scroll")
                         .max_height(panel_height - 50.0)
                         .show(ui, |ui| {
                             ui.add(

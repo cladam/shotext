@@ -59,6 +59,21 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             colours::info("Watch mode started (not yet implemented)");
             Ok(())
         }
+        Commands::List { verbose } => {
+            let records = search::all_records(&db);
+            if records.is_empty() {
+                colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
+                return Ok(());
+            }
+            for r in &records {
+                if verbose {
+                    println!("[{}] {} — {}", r.created_at, r.path, ocr::truncate(&r.content, 80));
+                } else {
+                    println!("{}", r.path);
+                }
+            }
+            Ok(())
+        }
         Commands::Search { query } => {
             match query {
                 Some(q) if !q.is_empty() => {
@@ -76,7 +91,10 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                     }
                     colours::info(&format!("Loaded {} records — launching fuzzy finder…", records.len()));
                     match search::interactive_search(&records) {
-                        Some(idx) => search::print_detail(&records[idx]),
+                        Some(idx) => {
+                            let r = &records[idx];
+                            launch_viewer(&r.path, r.content.clone())?;
+                        }
                         None => colours::info("Search cancelled."),
                     }
                 }
@@ -85,15 +103,7 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
         }
         Commands::View { target } => {
             let (path, text) = resolve_view_target(&target, &db)?;
-
-            let image_bytes = std::fs::read(&path).map_err(|e| {
-                AppError::GuiError(format!("Failed to read image {}: {}", path, e))
-            })?;
-
-            colours::info(&format!("Opening viewer for: {}", path));
-            let v = viewer::ShotViewer::new(&path, text, image_bytes);
-            v.launch()
-                .map_err(|e| AppError::GuiError(e.to_string()))?;
+            launch_viewer(&path, text)?;
             Ok(())
         }
         Commands::Config { edit } => {
@@ -151,4 +161,17 @@ fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), 
         "Target not found: '{}' — provide a file path or a known hash",
         target
     )))
+}
+
+/// Read the image from disk and open the egui viewer window.
+fn launch_viewer(path: &str, text: String) -> Result<(), AppError> {
+    let image_bytes = std::fs::read(path).map_err(|e| {
+        AppError::GuiError(format!("Failed to read image {}: {}", path, e))
+    })?;
+
+    colours::info(&format!("Opening viewer for: {}", path));
+    let v = viewer::ShotViewer::new(path, text, image_bytes);
+    v.launch()
+        .map_err(|e| AppError::GuiError(e.to_string()))?;
+    Ok(())
 }
