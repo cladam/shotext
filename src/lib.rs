@@ -11,7 +11,9 @@ pub mod config;
 pub mod db;
 pub mod error;
 mod indexer;
+pub mod ingest;
 pub mod search;
+pub mod ocr;
 
 /// Initialise or open the Tantivy search index located at the specified path.
 pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppError> {
@@ -38,14 +40,17 @@ pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppErr
 pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
     // Open the database
     let db = db::open(config.clone())?; // Clone config for search index init
-                                        // Initialise the search index
+    // Initialise the search index
     let search_index =
         initialise_search_index(&config).map_err(|e| AppError::Search(e.to_string()))?;
 
     match cli.command {
         Commands::Ingest { force } => {
-            // TODO: implement ingest logic
-            colours::info(&format!("Ingest called (force={})", force));
+            let report = ingest::run(&config, &db, force)?;
+            colours::info(&format!(
+                "\nDone — {} found, {} new, {} skipped, {} errors",
+                report.found, report.new, report.skipped, report.errors
+            ));
             Ok(())
         }
         Commands::Watch => {
