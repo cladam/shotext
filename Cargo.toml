@@ -13,8 +13,8 @@ edition = "2021"
 
 [dependencies]
 # CLI & Config
-clap = { version = "4.6.0", features = ["derive"] }
-clap_complete = "4.6.0"
+clap = { version = "4.5.60", features = ["derive"] }
+clap_complete = "4.5.60"
 toml = "0.9.8"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -31,4 +31,12 @@ walkdir = "2.5.0"
 dirs = "6.0.0"
 skim = "4.0.0"
 anyhow = "1.0.102"
+thiserror = "2.0.18"
 colored = "3.1.1"
+lazy_static = "1.5.0"
+tempfile = "3.26.0"
+self_update = "0.43.1"
+regex = "1.11.2"
+
+[lib]
+name = "shotext"

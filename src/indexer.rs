@@ -39,7 +39,7 @@ impl ShotIndexer {
     pub fn add_shot(&mut self, hash: &str, path: &str, text: &str) -> anyhow::Result<()> {
         self.kv_store.insert(hash, text)?;
 
-        let mut doc = tantivy::Document::default();
+        let mut doc = tantivy::TantivyDocument::default();
         doc.add_text(self.path_field, path);
         doc.add_text(self.text_field, text);
         doc.add_text(self.hash_field, hash);

@@ -1,5 +1,7 @@
 use clap::Parser;
-use medi::{colours, config, run, Cli};
+use shotext::{colours, config, db, initialise_search_index, run, Cli};
+use shotext::config::Config;
+use shotext::error::AppError;
 
 /// Main entry point for shotext
 /// The application logic is contained in lib.rs, and this file is a thin wrapper responsible
@@ -19,3 +21,4 @@ fn main() {
     std::process::exit(1);
   }
 }
+
