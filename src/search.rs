@@ -11,8 +11,8 @@ use std::path::Path;
 use tantivy::collector::TopDocs;
 use tantivy::directory::MmapDirectory;
 use tantivy::query::QueryParser;
-use tantivy::schema::*;
 use tantivy::schema::document::Value;
+use tantivy::schema::*;
 use tantivy::{Index, IndexWriter, TantivyDocument};
 
 // ---------------------------------------------------------------------------
@@ -27,10 +27,7 @@ lazy_static! {
         schema_builder.add_text_field("hash", STORED);
         schema_builder.add_date_field(
             "created_at",
-            DateOptions::default()
-                .set_fast()
-                .set_stored()
-                .set_indexed(),
+            DateOptions::default().set_fast().set_stored().set_indexed(),
         );
         schema_builder.build()
     };
@@ -268,5 +265,3 @@ fn field_as_date_string(doc: &TantivyDocument, field: Field) -> String {
         })
         .unwrap_or_default()
 }
-
-

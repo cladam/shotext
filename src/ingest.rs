@@ -60,8 +60,7 @@ pub fn run(
     ));
 
     // Create one Tantivy writer for the entire ingest run
-    let mut tantivy_writer =
-        search::writer(index).map_err(|e| AppError::Search(e.to_string()))?;
+    let mut tantivy_writer = search::writer(index).map_err(|e| AppError::Search(e.to_string()))?;
 
     let mut report = IngestReport {
         found: 0,
@@ -147,13 +146,9 @@ pub fn run(
         }
 
         // Also index in Tantivy for full-text search
-        if let Err(e) = search::index_document(
-            &tantivy_writer,
-            &hash,
-            &path_str,
-            &content,
-            &date_str,
-        ) {
+        if let Err(e) =
+            search::index_document(&tantivy_writer, &hash, &path_str, &content, &date_str)
+        {
             colours::warn(&format!(
                 "  ✗ Search index failed for {}: {}",
                 path.display(),

@@ -73,7 +73,10 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                         colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
                         return Ok(());
                     }
-                    colours::info(&format!("Loaded {} records — launching fuzzy finder…", records.len()));
+                    colours::info(&format!(
+                        "Loaded {} records — launching fuzzy finder…",
+                        records.len()
+                    ));
                     match search::interactive_search(&records) {
                         Some(idx) => search::print_detail(&records[idx]),
                         None => colours::info("Search cancelled."),
