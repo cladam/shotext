@@ -10,6 +10,7 @@ pub mod colours;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod experimental_ui;
 pub mod ingest;
 pub mod ocr;
 pub mod search;
@@ -129,6 +130,19 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
         Commands::View { target } => {
             let (path, text) = resolve_view_target(&target, &db)?;
             launch_viewer(&path, text)?;
+            Ok(())
+        }
+        Commands::X => {
+            let records = search::all_records(&db);
+            if records.is_empty() {
+                colours::info("No screenshots indexed yet. Run `shotext ingest` first.");
+                return Ok(());
+            }
+            colours::info(&format!(
+                "Launching dashboard with {} records…",
+                records.len()
+            ));
+            experimental_ui::launch_dashboard(records, search_index)?;
             Ok(())
         }
         Commands::Config { edit } => {

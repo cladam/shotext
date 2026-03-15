@@ -44,6 +44,9 @@ pub enum Commands {
         target: String,
     },
 
+    /// Experimental UI
+    X,
+
     /// Initialise or show current configuration
     Config {
         #[arg(short, long)]
