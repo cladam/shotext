@@ -1,12 +1,12 @@
 [package]
 name = "shotext"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["Claes Adamsson <claes.adamsson@gmail.com>"]
 homepage = "https://cladam.github.io/"
 repository = "https://github.com/cladam/shotext"
 readme = "README.md"
 license = "MIT"
-description = "High-performance OCR & Full-Text Search Indexer for macOS Screenshots"
+description = "High-performance OCR & Full-Text Search Indexer for Screenshots"
 keywords = ["cli", "OCR", "screenshots"]
 categories = ["command-line-utilities", "development-tools"]
 edition = "2021"
