@@ -54,12 +54,15 @@ impl ShotextDashboard {
                 created_at: r.created_at,
             })
             .collect();
+        let mut records = entries;
+        // Sort the list with the newest first
+        records.sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
-        let filtered_indices: Vec<usize> = (0..entries.len()).collect();
-        let selected = if entries.is_empty() { None } else { Some(0) };
+        let filtered_indices: Vec<usize> = (0..records.len()).collect();
+        let selected = if records.is_empty() { None } else { Some(0) };
 
         Self {
-            all_entries: entries,
+            all_entries: records,
             filtered_indices,
             tantivy_index: index,
             search_query: String::new(),
@@ -224,8 +227,8 @@ impl eframe::App for ShotextDashboard {
                         self.filtered_indices.len(),
                         self.all_entries.len()
                     ))
-                    .size(11.0)
-                    .weak(),
+                        .size(11.0)
+                        .weak(),
                 );
                 ui.separator();
 
@@ -240,6 +243,8 @@ impl eframe::App for ShotextDashboard {
                         for row_idx in row_range {
                             let entry_idx = self.filtered_indices[row_idx];
                             let entry = &self.all_entries[entry_idx];
+                            // let mut records = entry;
+                            // records.sort_by(|a, b| a.created_at.cmp(&b.created_at));
 
                             let is_selected = self.selected_index == Some(row_idx);
 
@@ -322,8 +327,8 @@ impl eframe::App for ShotextDashboard {
                                     egui::TextEdit::multiline(
                                         &mut self.all_entries[entry_idx].content,
                                     )
-                                    .font(egui::TextStyle::Monospace)
-                                    .desired_width(f32::INFINITY),
+                                        .font(egui::TextStyle::Monospace)
+                                        .desired_width(f32::INFINITY),
                                 );
                             });
                     });
@@ -401,8 +406,8 @@ impl eframe::App for ShotextDashboard {
                             egui::RichText::new(
                                 "Use the search bar or click an item in the sidebar",
                             )
-                            .size(12.0)
-                            .weak(),
+                                .size(12.0)
+                                .weak(),
                         );
                     });
                 });
@@ -437,5 +442,5 @@ pub fn launch_dashboard(
             Ok(Box::new(dashboard))
         }),
     )
-    .map_err(|e| AppError::GuiError(e.to_string()))
+        .map_err(|e| AppError::GuiError(e.to_string()))
 }

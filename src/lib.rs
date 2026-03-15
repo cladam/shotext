@@ -1,9 +1,9 @@
 use crate::config::Config;
 use crate::error::AppError;
+pub use cli::{Cli, Commands};
+use colored::Colorize;
 use std::env;
 use std::path::PathBuf;
-
-pub use cli::{Cli, Commands};
 
 pub mod cli;
 pub mod colours;
@@ -42,7 +42,7 @@ pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppErr
 pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
     // Open the database
     let db = db::open(config.clone())?; // Clone config for search index init
-                                        // Initialise the search index
+    // Initialise the search index
     let search_index =
         initialise_search_index(&config).map_err(|e| AppError::Search(e.to_string()))?;
 
@@ -157,6 +157,25 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                 let path = config::config_path();
                 colours::info(&format!("Config file: {}\n", path.display()));
                 println!("{}", config);
+            }
+            Ok(())
+        }
+        Commands::Update => {
+            println!("{}", "--- Checking for updates ---".blue());
+            let status = self_update::backends::github::Update::configure()
+                .repo_owner("cladam")
+                .repo_name("shotext")
+                .bin_name("shotext")
+                .show_download_progress(true)
+                .current_version(self_update::cargo_crate_version!())
+                .build()?
+                .update()?;
+
+            println!("Update status: `{}`!", status.version());
+            if status.updated() {
+                println!("{}", "Successfully updated shotext!".green());
+            } else {
+                println!("{}", "shotext is already up to date.".green());
             }
             Ok(())
         }

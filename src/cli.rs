@@ -52,4 +52,8 @@ pub enum Commands {
         #[arg(short, long)]
         edit: bool,
     },
+
+    /// Update shotext to the latest version.
+    #[command(name = "update", hide = true)] // Hidden from help
+    Update,
 }
