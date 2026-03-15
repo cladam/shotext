@@ -68,7 +68,7 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-latest      # ARM runner — cross-compile for Intel via Rosetta
           - target: aarch64-apple-darwin
             os: macos-latest      # ARM (Apple Silicon) runner
           - target: x86_64-pc-windows-msvc
@@ -89,9 +89,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libleptonica-dev libtesseract-dev clang pkg-config
 
-      - name: Install system dependencies (macOS)
-        if: startsWith(matrix.os, 'macos')
+      - name: Install system dependencies (macOS ARM – native)
+        if: matrix.target == 'aarch64-apple-darwin'
         run: brew install tesseract leptonica pkg-config
+
+      - name: Install system dependencies (macOS x86_64 – cross-compile via Rosetta)
+        if: matrix.target == 'x86_64-apple-darwin'
+        run: |
+          # Install an x86_64 copy of Homebrew under /usr/local
+          arch -x86_64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          arch -x86_64 /usr/local/bin/brew install tesseract leptonica pkg-config
 
       - name: Install system dependencies (Windows via vcpkg)
         if: matrix.os == 'windows-latest'
@@ -108,6 +115,8 @@ jobs:
 
       - name: Build binary
         env:
+          PKG_CONFIG_ALLOW_CROSS: "1"
+          PKG_CONFIG_PATH: ${{ matrix.target == 'x86_64-apple-darwin' && '/usr/local/lib/pkgconfig' || '' }}
           VCPKG_ROOT: ${{ env.VCPKG_ROOT }}
           VCPKGRS_DYNAMIC: ${{ env.VCPKGRS_DYNAMIC }}
         run: cargo build --verbose --release --target ${{ matrix.target }}
