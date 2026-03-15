@@ -83,9 +83,7 @@ impl ShotextDashboard {
                     // Map search results back to entry indices via hash
                     self.filtered_indices = results
                         .iter()
-                        .filter_map(|sr| {
-                            self.all_entries.iter().position(|e| e.hash == sr.hash)
-                        })
+                        .filter_map(|sr| self.all_entries.iter().position(|e| e.hash == sr.hash))
                         .collect();
                 }
                 Err(_) => {
@@ -272,17 +270,11 @@ impl eframe::App for ShotextDashboard {
                                     );
 
                                     ui.label(
-                                        egui::RichText::new(&entry.created_at)
-                                            .size(10.0)
-                                            .weak(),
+                                        egui::RichText::new(&entry.created_at).size(10.0).weak(),
                                     );
 
                                     if !snippet.is_empty() {
-                                        ui.label(
-                                            egui::RichText::new(&snippet)
-                                                .size(10.5)
-                                                .weak(),
-                                        );
+                                        ui.label(egui::RichText::new(&snippet).size(10.5).weak());
                                     }
                                 })
                             });
@@ -309,7 +301,8 @@ impl eframe::App for ShotextDashboard {
                             ui.with_layout(
                                 egui::Layout::right_to_left(egui::Align::Center),
                                 |ui| {
-                                    if ui.button("✕").on_hover_text("Close text panel").clicked() {
+                                    if ui.button("✕").on_hover_text("Close text panel").clicked()
+                                    {
                                         self.text_panel_open = false;
                                     }
                                     if ui.button("📋 Copy").clicked() {
@@ -396,11 +389,7 @@ impl eframe::App for ShotextDashboard {
                 ui.centered_and_justified(|ui| {
                     ui.vertical_centered(|ui| {
                         ui.add_space(ui.available_height() / 3.0);
-                        ui.label(
-                            egui::RichText::new("📷")
-                                .size(48.0)
-                                .weak(),
-                        );
+                        ui.label(egui::RichText::new("📷").size(48.0).weak());
                         ui.add_space(8.0);
                         ui.label(
                             egui::RichText::new("Select a screenshot to view details")
@@ -409,9 +398,11 @@ impl eframe::App for ShotextDashboard {
                         );
                         ui.add_space(4.0);
                         ui.label(
-                            egui::RichText::new("Use the search bar or click an item in the sidebar")
-                                .size(12.0)
-                                .weak(),
+                            egui::RichText::new(
+                                "Use the search bar or click an item in the sidebar",
+                            )
+                            .size(12.0)
+                            .weak(),
                         );
                     });
                 });
@@ -448,4 +439,3 @@ pub fn launch_dashboard(
     )
     .map_err(|e| AppError::GuiError(e.to_string()))
 }
-
