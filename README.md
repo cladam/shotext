@@ -1,4 +1,12 @@
-# shotext
+<div align="center">
+  <p align="center">
+    <img src="docs/shotext-logo.png" alt="shotext logo" width="200"/>
+  </p>
+
+[![Crates.io](https://img.shields.io/crates/v/shotext.svg)](https://crates.io/crates/shotext)
+[![Downloads](https://img.shields.io/crates/d/shotext.svg)](https://crates.io/crates/shotext)
+
+</div>
 
 **Your screenshots are a goldmine, stop losing what's in them.**
 
@@ -88,23 +96,7 @@ shotext x
 
 The `x` command launches a native desktop GUI that brings together browsing, searching, and viewing in a single window.
 
-### Layout
-
-```
-┌──────────────────┬─────────────────────────────────┬──────────────────┐
-│  🔍 Search…      │                                 │ Extracted Text   │
-│  (⌘F)            │                                 │                  │
-│──────────────────│        Screenshot Image         │ The quick brown  │
-│ 📄 screenshot-1  │        (zoom-to-fit)            │ fox jumped over  │
-│   2025-06-14     │                                 │ the lazy dog…    │
-│   error message… │                                 │                  │
-│                  │                                 │   📋 Copy   ✕    │
-│ 📄 screenshot-2  │                                 │                  │
-│   2025-06-13     │                                 │                  │
-│   meeting notes… │                                 │                  │
-└──────────────────┴─────────────────────────────────┴──────────────────┘
-  Left Sidebar              Center Pane             Right Drawer (toggle)
-```
+![Shotext Insights Dashboard](docs/shotext-x.png)
 
 ### Features
 
