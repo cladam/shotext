@@ -227,8 +227,8 @@ impl eframe::App for ShotextDashboard {
                         self.filtered_indices.len(),
                         self.all_entries.len()
                     ))
-                        .size(11.0)
-                        .weak(),
+                    .size(11.0)
+                    .weak(),
                 );
                 ui.separator();
 
@@ -327,8 +327,8 @@ impl eframe::App for ShotextDashboard {
                                     egui::TextEdit::multiline(
                                         &mut self.all_entries[entry_idx].content,
                                     )
-                                        .font(egui::TextStyle::Monospace)
-                                        .desired_width(f32::INFINITY),
+                                    .font(egui::TextStyle::Monospace)
+                                    .desired_width(f32::INFINITY),
                                 );
                             });
                     });
@@ -406,8 +406,8 @@ impl eframe::App for ShotextDashboard {
                             egui::RichText::new(
                                 "Use the search bar or click an item in the sidebar",
                             )
-                                .size(12.0)
-                                .weak(),
+                            .size(12.0)
+                            .weak(),
                         );
                     });
                 });
@@ -442,5 +442,5 @@ pub fn launch_dashboard(
             Ok(Box::new(dashboard))
         }),
     )
-        .map_err(|e| AppError::GuiError(e.to_string()))
+    .map_err(|e| AppError::GuiError(e.to_string()))
 }
