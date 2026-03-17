@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(name = "shotext")]
@@ -7,10 +6,6 @@ use std::path::PathBuf;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
-
-    /// Custom config file path
-    #[arg(short, long, value_name = "FILE")]
-    pub config: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]

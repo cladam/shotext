@@ -200,8 +200,7 @@ pub fn process_single_file(
 
     // OCR
     let path_str = path.to_string_lossy().to_string();
-    let content = ocr::extract_text(&path_str, &config.ocr.language)
-        .map_err(|e| AppError::Ocr(format!("{}: {}", path.display(), e)))?;
+    let content = ocr::extract_text(&path_str, &config.ocr.language)?;
 
     let date_str = screenshot_date(path).unwrap_or_else(|| "unknown date".into());
 

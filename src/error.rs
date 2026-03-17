@@ -35,6 +35,16 @@ pub enum AppError {
     #[error("GUI error: {0}")]
     GuiError(String),
 
-    #[error("OCR error: {0}")]
-    Ocr(String),
+    #[error("Failed to initialize Tesseract: {0}")]
+    TesseractInit(#[from] tesseract::InitializeError),
+
+    #[error("Failed to set image for OCR: {0}")]
+    TesseractImage(#[from] tesseract::SetImageError),
+
+    #[error("Failed to extract text: {0}")]
+    TesseractExtraction(#[from] tesseract::plumbing::TessBaseApiGetUtf8TextError),
+
+    // You can still keep a generic one for string-based errors if needed
+    #[error("General OCR error: {0}")]
+    OcrGeneral(String),
 }
