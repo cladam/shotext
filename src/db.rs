@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::{env, fs, str};
 
 // Helper function to open the database
-pub fn open(config: Config) -> Result<Db, AppError> {
+pub fn open(config: &Config) -> Result<Db, AppError> {
     let db_path = match env::var("SHOTEXT_DB_PATH") {
         Ok(path_str) => PathBuf::from(path_str),
         Err(_) => config.paths.database.clone(),

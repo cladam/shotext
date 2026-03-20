@@ -8,6 +8,12 @@ pub enum AppError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("xxx")]
+    TomlDeserialization(#[from] toml::de::Error),
+
+    #[error("xxx")]
+    TomlSerialization(#[from] toml::ser::Error),
+
     #[error("Database error: {0}")]
     Sled(#[from] sled::Error),
 

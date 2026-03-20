@@ -41,8 +41,8 @@ pub fn initialise_search_index(config: &Config) -> Result<tantivy::Index, AppErr
 // The main logic function, which takes the parsed CLI commands
 pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
     // Open the database
-    let db = db::open(config.clone())?; // Clone config for search index init
-                                        // Initialise the search index
+    let db = db::open(&config)?; // Clone config for search index init
+                                 // Initialise the search index
     let search_index =
         initialise_search_index(&config).map_err(|e| AppError::Search(e.to_string()))?;
 

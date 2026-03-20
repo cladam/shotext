@@ -1,3 +1,4 @@
+use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs;
@@ -67,9 +68,11 @@ pub fn config_path() -> PathBuf {
 }
 
 /// Loads the config from disk, creating a default one if it doesn't exist.
-pub fn load() -> Result<Config, std::io::Error> {
+pub fn load() -> Result<Config, AppError> {
     let config_path = config_path();
-    let config_dir = config_path.parent().expect("Config path has no parent");
+    let config_dir = config_path
+        .parent()
+        .ok_or_else(|| AppError::ConfigError("Config path has no parent".to_string()))?;
 
     // Create config directory if it doesn't exist.
     fs::create_dir_all(config_dir)?;
@@ -77,14 +80,13 @@ pub fn load() -> Result<Config, std::io::Error> {
     // If the config file doesn't exist, create it with default values.
     if !config_path.exists() {
         let default_config = Config::default();
-        let toml_string =
-            toml::to_string_pretty(&default_config).expect("Could not serialize default config");
+        let toml_string = toml::to_string_pretty(&default_config)?;
         fs::write(&config_path, toml_string)?;
     }
 
     // Read the config file from disk.
     let toml_content = fs::read_to_string(&config_path)?;
-    let config: Config = toml::from_str(&toml_content).expect("Could not deserialize config file");
+    let config: Config = toml::from_str(&toml_content)?;
 
     Ok(config)
 }
