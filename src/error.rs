@@ -5,6 +5,9 @@ pub enum AppError {
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
+    #[error("UTF-8 error: {0}")]
+    Utf8(#[from] std::string::FromUtf8Error),
+
     #[error("TOML deserialization error: {0}")]
     TomlDeserialization(#[from] toml::de::Error),
 

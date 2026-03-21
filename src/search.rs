@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::ingest::ShotRecord;
-use crate::ocr;
+use crate::{colours, ocr};
 
 use chrono::NaiveDateTime;
 use lazy_static::lazy_static;
@@ -119,9 +119,30 @@ pub fn query(index: &Index, query_str: &str, limit: usize) -> Result<Vec<SearchR
 pub fn all_records(db: &Db) -> Vec<SearchResult> {
     db.iter()
         .filter_map(|result| {
-            let (key, value) = result.ok()?;
-            let hash = String::from_utf8(key.to_vec()).ok()?;
-            let record: ShotRecord = serde_json::from_slice(&value).ok()?;
+            let (key, value) = match result {
+                Ok(kv) => kv,
+                Err(e) => {
+                    colours::warn(&format!("Failed to read DB entry: {e}"));
+                    return None;
+                }
+            };
+
+            let hash = match String::from_utf8(key.to_vec()) {
+                Ok(h) => h,
+                Err(e) => {
+                    colours::warn(&format!("Invalid UTF-8 in DB key: {e}"));
+                    return None;
+                }
+            };
+
+            let record: ShotRecord = match serde_json::from_slice(&value) {
+                Ok(r) => r,
+                Err(e) => {
+                    colours::warn(&format!("Failed to deserialize record {hash}: {e}"));
+                    return None;
+                }
+            };
+
             Some(SearchResult {
                 hash,
                 path: record.path,
