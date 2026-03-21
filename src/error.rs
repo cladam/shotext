@@ -2,23 +2,17 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
-    #[error("Unsupported feature: {0}")]
-    Unsupported(String),
-
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
-    #[error("xxx")]
+    #[error("TOML deserialization error: {0}")]
     TomlDeserialization(#[from] toml::de::Error),
 
-    #[error("xxx")]
+    #[error("TOML serialization error: {0}")]
     TomlSerialization(#[from] toml::ser::Error),
 
     #[error("Database error: {0}")]
     Sled(#[from] sled::Error),
-
-    #[error("Regexp error: {0}")]
-    Regexp(#[from] regex::Error),
 
     #[error("Database error: {0}")]
     Database(String),
