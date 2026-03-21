@@ -15,10 +15,7 @@ use tantivy::schema::document::Value;
 use tantivy::schema::*;
 use tantivy::{Index, IndexWriter, TantivyDocument};
 
-// ---------------------------------------------------------------------------
-// Schema (single source of truth)
-// ---------------------------------------------------------------------------
-
+// Schema
 lazy_static! {
     pub static ref SCHEMA: Schema = {
         let mut schema_builder = Schema::builder();
@@ -41,10 +38,6 @@ pub struct SearchResult {
     pub created_at: String,
 }
 
-// ---------------------------------------------------------------------------
-// Index management
-// ---------------------------------------------------------------------------
-
 /// Opens an existing Tantivy index or creates a new one at `path`.
 pub fn open_index(path: &Path) -> Result<Index, tantivy::error::TantivyError> {
     std::fs::create_dir_all(path)?;
@@ -57,10 +50,6 @@ pub fn writer(index: &Index) -> Result<IndexWriter, tantivy::error::TantivyError
     index.writer(50_000_000)
 }
 
-// ---------------------------------------------------------------------------
-// Indexing (writing documents)
-// ---------------------------------------------------------------------------
-
 /// Add a screenshot document to the Tantivy full-text index.
 pub fn index_document(
     writer: &IndexWriter,
@@ -69,10 +58,10 @@ pub fn index_document(
     content: &str,
     created_at_str: &str,
 ) -> Result<(), AppError> {
-    let path_field = SCHEMA.get_field("path").unwrap();
-    let content_field = SCHEMA.get_field("content").unwrap();
-    let hash_field = SCHEMA.get_field("hash").unwrap();
-    let created_at_field = SCHEMA.get_field("created_at").unwrap();
+    let path_field = SCHEMA.get_field("path")?;
+    let content_field = SCHEMA.get_field("content")?;
+    let hash_field = SCHEMA.get_field("hash")?;
+    let created_at_field = SCHEMA.get_field("created_at")?;
 
     let created_at = parse_date_to_tantivy(created_at_str);
 
@@ -88,19 +77,14 @@ pub fn index_document(
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// Querying (Tantivy full-text search)
-// ---------------------------------------------------------------------------
-
-/// Full-text search over the Tantivy index. Returns up to `limit` results
-/// ranked by relevance.
+/// Full-text search over the Tantivy index. Returns up to `limit` results ranked by relevance.
 pub fn query(index: &Index, query_str: &str, limit: usize) -> Result<Vec<SearchResult>, AppError> {
     let reader = index
         .reader()
         .map_err(|e| AppError::Search(e.to_string()))?;
     let searcher = reader.searcher();
 
-    let content_field = SCHEMA.get_field("content").unwrap();
+    let content_field = SCHEMA.get_field("content")?;
     let query_parser = QueryParser::for_index(index, vec![content_field]);
     let parsed = query_parser
         .parse_query(query_str)
@@ -110,9 +94,9 @@ pub fn query(index: &Index, query_str: &str, limit: usize) -> Result<Vec<SearchR
         .search(&parsed, &TopDocs::with_limit(limit))
         .map_err(|e| AppError::Search(e.to_string()))?;
 
-    let path_field = SCHEMA.get_field("path").unwrap();
-    let hash_field = SCHEMA.get_field("hash").unwrap();
-    let created_at_field = SCHEMA.get_field("created_at").unwrap();
+    let path_field = SCHEMA.get_field("path")?;
+    let hash_field = SCHEMA.get_field("hash")?;
+    let created_at_field = SCHEMA.get_field("created_at")?;
 
     let mut results = Vec::new();
     for (_score, doc_address) in top_docs {
@@ -131,10 +115,6 @@ pub fn query(index: &Index, query_str: &str, limit: usize) -> Result<Vec<SearchR
     Ok(results)
 }
 
-// ---------------------------------------------------------------------------
-// Sled iteration (for skim interactive mode)
-// ---------------------------------------------------------------------------
-
 /// Load every ingested record from the sled database.
 pub fn all_records(db: &Db) -> Vec<SearchResult> {
     db.iter()
@@ -151,10 +131,6 @@ pub fn all_records(db: &Db) -> Vec<SearchResult> {
         })
         .collect()
 }
-
-// ---------------------------------------------------------------------------
-// Interactive fuzzy search with skim
-// ---------------------------------------------------------------------------
 
 /// Launch an interactive skim fuzzy-finder over the given results.
 /// Returns the index of the selected result, or `None` if the user aborted.
@@ -199,10 +175,6 @@ pub fn interactive_search(results: &[SearchResult]) -> Option<usize> {
     })
 }
 
-// ---------------------------------------------------------------------------
-// Display helpers
-// ---------------------------------------------------------------------------
-
 /// Print a list of search results to stdout.
 pub fn print_results(results: &[SearchResult]) {
     use crate::colours;
@@ -220,23 +192,6 @@ pub fn print_results(results: &[SearchResult]) {
     }
     println!();
 }
-
-/// Print full detail of a single search result.
-pub fn print_detail(r: &SearchResult) {
-    use crate::colours;
-
-    println!();
-    colours::success(&format!("  📄 {}", r.path));
-    colours::info(&format!("     Date:  {}", r.created_at));
-    colours::info(&format!("     Hash:  {}", r.hash));
-    println!("     ─── Extracted Text ───");
-    println!("{}", r.content);
-    println!();
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 /// Parse a date string (e.g. "2025-04-23 20:36") into a `tantivy::DateTime`.
 fn parse_date_to_tantivy(date_str: &str) -> tantivy::DateTime {
