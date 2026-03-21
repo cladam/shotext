@@ -31,3 +31,9 @@ pub fn get_record(db: &Db, key: &str) -> Result<Option<ShotRecord>, AppError> {
         None => Ok(None),
     }
 }
+
+/// Delete a record from the database by key.
+pub fn delete_record(db: &Db, key: &str) -> Result<(), AppError> {
+    db.remove(key)?;
+    Ok(())
+}

@@ -21,7 +21,7 @@ lazy_static! {
         let mut schema_builder = Schema::builder();
         schema_builder.add_text_field("path", STORED);
         schema_builder.add_text_field("content", TEXT | STORED);
-        schema_builder.add_text_field("hash", STORED);
+        schema_builder.add_text_field("hash", STRING | STORED);
         schema_builder.add_date_field(
             "created_at",
             DateOptions::default().set_fast().set_stored().set_indexed(),
@@ -73,6 +73,17 @@ pub fn index_document(
 
     writer
         .add_document(doc)
+        .map_err(|e| AppError::Search(e.to_string()))?;
+    Ok(())
+}
+
+/// Delete a document from the Tantivy index by its hash.
+pub fn delete_document(writer: &mut IndexWriter, hash: &str) -> Result<(), AppError> {
+    let hash_field = SCHEMA.get_field("hash")?;
+    let term = tantivy::Term::from_field_text(hash_field, hash);
+    writer.delete_term(term);
+    writer
+        .commit()
         .map_err(|e| AppError::Search(e.to_string()))?;
     Ok(())
 }

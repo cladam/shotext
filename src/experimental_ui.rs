@@ -2,8 +2,7 @@ use eframe::egui;
 use std::sync::Arc;
 
 use crate::error::AppError;
-use crate::ocr;
-use crate::search;
+use crate::{colours, db, ocr, search};
 
 struct DashboardEntry {
     hash: String,
@@ -25,6 +24,8 @@ struct ShotextDashboard {
     all_entries: Vec<DashboardEntry>,
     filtered_indices: Vec<usize>,
     tantivy_index: tantivy::Index,
+    tantivy_writer: tantivy::IndexWriter,
+    db: sled::Db,
 
     // UI state
     search_query: String,
@@ -33,10 +34,17 @@ struct ShotextDashboard {
     loaded_image: Option<LoadedImage>,
     text_panel_open: bool,
     focus_search: bool,
+    confirm_delete: Option<usize>, // entry index pending deletion
 }
 
 impl ShotextDashboard {
-    fn new(records: Vec<search::SearchResult>, index: tantivy::Index) -> Self {
+    fn new(
+        records: Vec<search::SearchResult>,
+        index: tantivy::Index,
+        db: sled::Db,
+    ) -> Result<Self, AppError> {
+        let writer = search::writer(&index).map_err(|e| AppError::Search(e.to_string()))?;
+
         let entries: Vec<DashboardEntry> = records
             .into_iter()
             .map(|r| DashboardEntry {
@@ -53,17 +61,20 @@ impl ShotextDashboard {
         let filtered_indices: Vec<usize> = (0..records.len()).collect();
         let selected = if records.is_empty() { None } else { Some(0) };
 
-        Self {
+        Ok(Self {
             all_entries: records,
             filtered_indices,
             tantivy_index: index,
+            tantivy_writer: writer,
+            db,
             search_query: String::new(),
             prev_query: String::new(),
             selected_index: selected,
             loaded_image: None,
             text_panel_open: true,
             focus_search: false,
-        }
+            confirm_delete: None,
+        })
     }
 
     /// Run Tantivy search or show all if query is empty.
@@ -148,6 +159,49 @@ impl ShotextDashboard {
     fn selected_entry_idx(&self) -> Option<usize> {
         self.selected_index
             .and_then(|sel| self.filtered_indices.get(sel).copied())
+    }
+
+    /// Delete an entry from the search index, database, and disk.
+    fn delete_entry(&mut self, entry_idx: usize) {
+        let entry = &self.all_entries[entry_idx];
+
+        // 1. Remove from Tantivy search index
+        if let Err(e) = search::delete_document(&mut self.tantivy_writer, &entry.hash) {
+            colours::warn(&format!("Failed to remove from search index: {e}"));
+        }
+
+        // 2. Remove from sled database
+        if let Err(e) = db::delete_record(&self.db, &entry.hash) {
+            colours::warn(&format!("Failed to remove from database: {e}"));
+        }
+
+        // 3. Delete file from disk
+        if let Err(e) = std::fs::remove_file(&entry.path) {
+            colours::warn(&format!("Failed to delete file {}: {e}", entry.path));
+        }
+
+        // 4. Remove from in-memory state
+        self.all_entries.remove(entry_idx);
+
+        // Rebuild filtered_indices (old indices are now stale)
+        self.filtered_indices.retain(|&i| i != entry_idx);
+        for idx in &mut self.filtered_indices {
+            if *idx > entry_idx {
+                *idx -= 1;
+            }
+        }
+
+        // Adjust selection
+        if self.filtered_indices.is_empty() {
+            self.selected_index = None;
+            self.loaded_image = None;
+        } else if let Some(sel) = self.selected_index {
+            if sel >= self.filtered_indices.len() {
+                self.selected_index = Some(self.filtered_indices.len() - 1);
+            }
+        }
+
+        self.confirm_delete = None;
     }
 }
 
@@ -320,17 +374,47 @@ impl eframe::App for ShotextDashboard {
         // Center - the image itself
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(entry_idx) = self.selected_entry_idx() {
-                let entry = &self.all_entries[entry_idx];
-                let filename = std::path::Path::new(&entry.path)
+                let filename = std::path::Path::new(&self.all_entries[entry_idx].path)
                     .file_name()
                     .unwrap_or_default()
-                    .to_string_lossy();
+                    .to_string_lossy()
+                    .to_string();
+                let created_at = self.all_entries[entry_idx].created_at.clone();
+                let path = self.all_entries[entry_idx].path.clone();
 
                 // Toolbar
                 ui.horizontal(|ui| {
                     ui.heading(format!("📸 {}", filename));
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Delete button
+                        if self.confirm_delete == Some(entry_idx) {
+                            ui.label(
+                                egui::RichText::new("Delete permanently?")
+                                    .color(egui::Color32::from_rgb(255, 100, 100)),
+                            );
+                            if ui
+                                .button(
+                                    egui::RichText::new("Yes, delete")
+                                        .color(egui::Color32::from_rgb(255, 80, 80)),
+                                )
+                                .clicked()
+                            {
+                                self.delete_entry(entry_idx);
+                            }
+                            if ui.button("Cancel").clicked() {
+                                self.confirm_delete = None;
+                            }
+                        } else if ui
+                            .button("🗑 Delete")
+                            .on_hover_text("Delete screenshot from index, database, and disk")
+                            .clicked()
+                        {
+                            self.confirm_delete = Some(entry_idx);
+                        }
+
+                        ui.add_space(8.0);
+
                         if !self.text_panel_open
                             && ui
                                 .button("📝 Show Text")
@@ -343,7 +427,7 @@ impl eframe::App for ShotextDashboard {
                 });
 
                 ui.label(
-                    egui::RichText::new(format!("{}  •  {}", entry.created_at, entry.path))
+                    egui::RichText::new(format!("{}  •  {}", created_at, path))
                         .size(11.0)
                         .weak(),
                 );
@@ -399,8 +483,9 @@ impl eframe::App for ShotextDashboard {
 pub fn launch_dashboard(
     records: Vec<search::SearchResult>,
     index: tantivy::Index,
+    db: sled::Db,
 ) -> Result<(), AppError> {
-    let dashboard = ShotextDashboard::new(records, index);
+    let dashboard = ShotextDashboard::new(records, index, db)?;
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()

@@ -142,7 +142,7 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                 "Launching dashboard with {} records…",
                 records.len()
             ));
-            experimental_ui::launch_dashboard(records, search_index)?;
+            experimental_ui::launch_dashboard(records, search_index, db)?;
             Ok(())
         }
         Commands::Config { edit } => {
