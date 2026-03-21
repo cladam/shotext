@@ -22,6 +22,21 @@ pub struct ShotRecord {
     pub created_at: String,
 }
 
+impl ShotRecord {
+    pub fn new(path: String, content: String, created_at: String) -> Self {
+        Self {
+            path,
+            content,
+            created_at,
+        }
+    }
+
+    pub fn to_json(&self) -> Result<Vec<u8>, AppError> {
+        serde_json::to_vec(self)
+            .map_err(|e| AppError::Database(format!("Failed to serialize record: {e}")))
+    }
+}
+
 /// Result summary returned after an ingest run.
 pub struct IngestReport {
     pub found: usize,
@@ -127,13 +142,8 @@ pub fn run(
         let date_str = screenshot_date(path).unwrap_or_else(|| "unknown date".into());
 
         // Build a record and persist as JSON in sled
-        let record = ShotRecord {
-            path: path_str.clone(),
-            content: content.clone(),
-            created_at: date_str.clone(),
-        };
-        let json = serde_json::to_vec(&record)
-            .map_err(|e| AppError::Database(format!("Failed to serialize record: {}", e)))?;
+        let record = ShotRecord::new(path_str, content, date_str);
+        let json = record.to_json()?;
 
         if let Err(e) = db.insert(hash.as_bytes(), json) {
             colours::warn(&format!(
@@ -146,9 +156,13 @@ pub fn run(
         }
 
         // Also index in Tantivy for full-text search
-        if let Err(e) =
-            search::index_document(&tantivy_writer, &hash, &path_str, &content, &date_str)
-        {
+        if let Err(e) = search::index_document(
+            &tantivy_writer,
+            &hash,
+            &record.path,
+            &record.content,
+            &record.created_at,
+        ) {
             colours::warn(&format!(
                 "  ✗ Search index failed for {}: {}",
                 path.display(),
@@ -157,12 +171,10 @@ pub fn run(
             // Non-fatal — sled record was already written
         }
 
-        let snippet = ocr::truncate(&content, 60);
+        let snippet = ocr::truncate(&record.content, 60);
         colours::success(&format!(
             "  ✔ {} ({}) — \"{}\"",
-            path.display(),
-            date_str,
-            snippet,
+            record.path, record.created_at, snippet,
         ));
         report.new += 1;
     }
@@ -205,24 +217,23 @@ pub fn process_single_file(
     let date_str = screenshot_date(path).unwrap_or_else(|| "unknown date".into());
 
     // Persist to sled
-    let record = ShotRecord {
-        path: path_str.clone(),
-        content: content.clone(),
-        created_at: date_str.clone(),
-    };
-    let json = serde_json::to_vec(&record)
-        .map_err(|e| AppError::Database(format!("Failed to serialize: {}", e)))?;
+    let record = ShotRecord::new(path_str, content, date_str);
+    let json = record.to_json()?;
     db.insert(hash.as_bytes(), json)?;
 
     // Index in Tantivy
-    search::index_document(tantivy_writer, &hash, &path_str, &content, &date_str)?;
+    search::index_document(
+        tantivy_writer,
+        &hash,
+        &record.path,
+        &record.content,
+        &record.created_at,
+    )?;
 
-    let snippet = ocr::truncate(&content, 60);
+    let snippet = ocr::truncate(&record.content, 60);
     colours::success(&format!(
         "  ✔ {} ({}) — \"{}\"",
-        path.display(),
-        date_str,
-        snippet,
+        record.path, record.created_at, snippet,
     ));
 
     Ok(())
