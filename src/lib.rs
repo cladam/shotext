@@ -190,14 +190,11 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
 fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), AppError> {
     let path = std::path::Path::new(target);
 
-    // 1. Try as a file path
     if path.exists() && path.is_file() {
         let bytes = std::fs::read(path)?;
         let hash = blake3::hash(&bytes).to_hex().to_string();
 
-        if let Some(val) = db.get(hash.as_bytes())? {
-            let record: ingest::ShotRecord = serde_json::from_slice(&val)
-                .map_err(|e| AppError::Database(format!("Corrupt record: {}", e)))?;
+        if let Some(record) = db::get_record(db, &hash)? {
             return Ok((target.to_string(), record.content));
         }
 
@@ -208,10 +205,7 @@ fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), 
         ));
     }
 
-    // 2. Try as a blake3 hash
-    if let Some(val) = db.get(target.as_bytes())? {
-        let record: ingest::ShotRecord = serde_json::from_slice(&val)
-            .map_err(|e| AppError::Database(format!("Corrupt record: {}", e)))?;
+    if let Some(record) = db::get_record(db, target)? {
         return Ok((record.path, record.content));
     }
 

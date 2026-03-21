@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::error::AppError;
+use crate::ingest::ShotRecord;
 use sled::Db;
 use std::path::PathBuf;
 use std::{env, fs, str};
@@ -21,4 +22,12 @@ pub fn open(config: &Config) -> Result<Db, AppError> {
 /// Checks if a key exists in the database.
 pub fn key_exists(db: &Db, key: &str) -> Result<bool, AppError> {
     db.contains_key(key).map_err(AppError::from)
+}
+
+// Get a single record
+pub fn get_record(db: &Db, key: &str) -> Result<Option<ShotRecord>, AppError> {
+    match db.get(key)? {
+        Some(bytes) => Ok(Some(serde_json::from_slice(&bytes)?)),
+        None => Ok(None),
+    }
 }
