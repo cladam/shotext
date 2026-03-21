@@ -72,10 +72,10 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
 
             // Header
             if verbose {
-                println!("{:<12}  {:<16}  {:<60}  {}", "HASH", "DATE", "PATH", "TEXT");
+                println!("{:<12}  {:<16}  {:<60}  TEXT", "HASH", "DATE", "PATH");
                 println!("{}", "─".repeat(120));
             } else {
-                println!("{:<64}  {:<16}  {}", "HASH", "DATE", "PATH");
+                println!("{:<64}  {:<16}  PATH", "HASH", "DATE");
                 println!("{}", "─".repeat(120));
             }
 

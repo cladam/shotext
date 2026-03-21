@@ -5,10 +5,6 @@ use crate::error::AppError;
 use crate::ocr;
 use crate::search;
 
-// ---------------------------------------------------------------------------
-// Dashboard entry — lightweight metadata, image loaded lazily
-// ---------------------------------------------------------------------------
-
 struct DashboardEntry {
     hash: String,
     path: String,
@@ -23,10 +19,6 @@ struct LoadedImage {
     uri: String,
     bytes: Arc<[u8]>,
 }
-
-// ---------------------------------------------------------------------------
-// App state
-// ---------------------------------------------------------------------------
 
 struct ShotextDashboard {
     // Data
@@ -159,10 +151,6 @@ impl ShotextDashboard {
     }
 }
 
-// ---------------------------------------------------------------------------
-// eframe::App
-// ---------------------------------------------------------------------------
-
 impl eframe::App for ShotextDashboard {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // ── Keyboard shortcut: ⌘F / Ctrl+F to focus search ──
@@ -189,9 +177,7 @@ impl eframe::App for ShotextDashboard {
         // Lazy-load image for whatever is selected
         self.ensure_image_loaded();
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 1. LEFT SIDEBAR — Search + Result List
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Left panel
         egui::SidePanel::left("navigation_sidebar")
             .resizable(true)
             .default_width(320.0)
@@ -212,11 +198,9 @@ impl eframe::App for ShotextDashboard {
                         search_field.request_focus();
                         self.focus_search = false;
                     }
-                    if search_field.changed() {
-                        if self.search_query != self.prev_query {
-                            self.prev_query = self.search_query.clone();
-                            self.refresh_filter();
-                        }
+                    if search_field.changed() && self.search_query != self.prev_query {
+                        self.prev_query = self.search_query.clone();
+                        self.refresh_filter();
                     }
                 });
 
@@ -291,9 +275,7 @@ impl eframe::App for ShotextDashboard {
                     });
             });
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 2. RIGHT PANEL — Collapsible OCR text drawer
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Right panel
         if self.text_panel_open {
             if let Some(entry_idx) = self.selected_entry_idx() {
                 egui::SidePanel::right("text_drawer")
@@ -335,9 +317,7 @@ impl eframe::App for ShotextDashboard {
             }
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 3. CENTER — Image detail view
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // Center - the image itself
         egui::CentralPanel::default().show(ctx, |ui| {
             if let Some(entry_idx) = self.selected_entry_idx() {
                 let entry = &self.all_entries[entry_idx];
@@ -351,14 +331,13 @@ impl eframe::App for ShotextDashboard {
                     ui.heading(format!("📸 {}", filename));
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if !self.text_panel_open {
-                            if ui
+                        if !self.text_panel_open
+                            && ui
                                 .button("📝 Show Text")
                                 .on_hover_text("Open extracted text panel")
                                 .clicked()
-                            {
-                                self.text_panel_open = true;
-                            }
+                        {
+                            self.text_panel_open = true;
                         }
                     });
                 });
@@ -415,10 +394,6 @@ impl eframe::App for ShotextDashboard {
         });
     }
 }
-
-// ---------------------------------------------------------------------------
-// Public launcher — called from lib.rs
-// ---------------------------------------------------------------------------
 
 /// Build the dashboard from sled records and launch the native window.
 pub fn launch_dashboard(

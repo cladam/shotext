@@ -59,11 +59,11 @@ pub fn run(config: &Config, db: &Db, index: &tantivy::Index) -> Result<(), AppEr
         },
         poll_config,
     )
-    .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+    .map_err(|e| AppError::Io(std::io::Error::other(e)))?;
 
     watcher
         .watch(&canonical, RecursiveMode::Recursive)
-        .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+        .map_err(|e| AppError::Io(std::io::Error::other(e)))?;
 
     colours::success(&format!(
         "👁  Watching {} for new screenshots (Ctrl-C to stop)",
