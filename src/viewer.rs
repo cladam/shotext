@@ -96,11 +96,7 @@ impl eframe::App for ShotViewer {
                         ui.add_space(ui.available_height() / 3.0);
                         ui.label(egui::RichText::new("🗑").size(48.0));
                         ui.add_space(8.0);
-                        ui.label(
-                            egui::RichText::new("Screenshot deleted.")
-                                .size(16.0)
-                                .weak(),
-                        );
+                        ui.label(egui::RichText::new("Screenshot deleted.").size(16.0).weak());
                     });
                 });
                 return;
@@ -156,8 +152,8 @@ impl eframe::App for ShotViewer {
                                         self.image_uri.clone(),
                                         self.image_bytes.clone(),
                                     )
-                                        .max_width(ui.available_width())
-                                        .shrink_to_fit(),
+                                    .max_width(ui.available_width())
+                                    .shrink_to_fit(),
                                 );
                             });
                     });
@@ -198,8 +194,7 @@ impl eframe::App for ShotViewer {
                             });
 
                             if let Some(tag) = tag_to_remove {
-                                if let Ok(Some(record)) =
-                                    db::remove_tag(&self.db, &self.hash, &tag)
+                                if let Ok(Some(record)) = db::remove_tag(&self.db, &self.hash, &tag)
                                 {
                                     self.tags = record.tags.clone();
                                     if let Err(e) = search::reindex_document(

@@ -151,7 +151,11 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             experimental_ui::launch_dashboard(records, search_index, db)?;
             Ok(())
         }
-        Commands::Tag { target, add, remove } => {
+        Commands::Tag {
+            target,
+            add,
+            remove,
+        } => {
             let hash = resolve_hash(&target, &db)?;
 
             // Need a writer for re-indexing

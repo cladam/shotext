@@ -75,4 +75,3 @@ pub fn remove_tag(db: &Db, hash: &str, tag: &str) -> Result<Option<ShotRecord>, 
 
     Ok(Some(record))
 }
-

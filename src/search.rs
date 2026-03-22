@@ -103,7 +103,14 @@ pub fn reindex_document(
     let hash_field = SCHEMA.get_field("hash")?;
     let term = tantivy::Term::from_field_text(hash_field, hash);
     writer.delete_term(term);
-    index_document(writer, hash, &record.path, &record.content, &record.created_at, &record.tags)?;
+    index_document(
+        writer,
+        hash,
+        &record.path,
+        &record.content,
+        &record.created_at,
+        &record.tags,
+    )?;
     writer
         .commit()
         .map_err(|e| AppError::Search(e.to_string()))?;

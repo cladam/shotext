@@ -382,10 +382,13 @@ impl eframe::App for ShotextDashboard {
                                 // Remove tag if clicked
                                 if let Some(tag) = tag_to_remove {
                                     let hash = self.all_entries[entry_idx].hash.clone();
-                                    if let Ok(Some(record)) = db::remove_tag(&self.db, &hash, &tag) {
+                                    if let Ok(Some(record)) = db::remove_tag(&self.db, &hash, &tag)
+                                    {
                                         self.all_entries[entry_idx].tags = record.tags.clone();
                                         if let Err(e) = search::reindex_document(
-                                            &mut self.tantivy_writer, &hash, &record,
+                                            &mut self.tantivy_writer,
+                                            &hash,
+                                            &record,
                                         ) {
                                             colours::warn(&format!("Failed to reindex: {e}"));
                                         }
@@ -408,10 +411,14 @@ impl eframe::App for ShotextDashboard {
                                         let new_tag = self.tag_input.trim().to_string();
                                         self.tag_input.clear();
                                         let hash = self.all_entries[entry_idx].hash.clone();
-                                        if let Ok(Some(record)) = db::add_tag(&self.db, &hash, &new_tag) {
+                                        if let Ok(Some(record)) =
+                                            db::add_tag(&self.db, &hash, &new_tag)
+                                        {
                                             self.all_entries[entry_idx].tags = record.tags.clone();
                                             if let Err(e) = search::reindex_document(
-                                                &mut self.tantivy_writer, &hash, &record,
+                                                &mut self.tantivy_writer,
+                                                &hash,
+                                                &record,
                                             ) {
                                                 colours::warn(&format!("Failed to reindex: {e}"));
                                             }
