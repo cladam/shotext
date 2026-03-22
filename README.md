@@ -75,22 +75,44 @@ shotext search "connection refused"
 # 5. Or launch the interactive fuzzy finder
 shotext search
 
-# 6. Open the experimental GUI dashboard
+# 6. Tag a screenshot for easy filtering
+shotext tag <hash-or-path> --add work --add important
+
+# 7. Open the experimental GUI dashboard
 shotext x
 ```
 
 ## Commands
 
-| Command                  | Description                                                                                                  |
-|--------------------------|--------------------------------------------------------------------------------------------------------------|
-| `shotext ingest`         | Scan the screenshots folder and index all new images. Use `-f` to force re-index everything.                 |
-| `shotext watch`          | Watch the folder for new screenshots and index them the moment they appear.                                  |
-| `shotext search <query>` | Full-text search across all extracted text. Supports stemming ("develop" → "developer", "developing").       |
-| `shotext search`         | Interactive fuzzy finder (powered by [skim](https://github.com/lotabout/skim)) over all indexed screenshots. |
-| `shotext list`           | List all indexed screenshots. Add `-v` for dates and text snippets.                                          |
-| `shotext view <target>`  | Open a screenshot in a native GUI viewer alongside its extracted text. Accepts a file path or a blake3 hash. |
-| `shotext x`              | Launch the experimental Insights dashboard — a full GUI for browsing, searching, and viewing screenshots.    |
-| `shotext config`         | Show the current configuration. Use `-e` to open it in your `$EDITOR`.                                       |
+| Command                  | Description                                                                                                     |
+|--------------------------|-----------------------------------------------------------------------------------------------------------------|
+| `shotext ingest`         | Scan the screenshots folder and index all new images. Use `-f` to force re-index everything.                    |
+| `shotext watch`          | Watch the folder for new screenshots and index them the moment they appear.                                     |
+| `shotext search <query>` | Full-text search across all extracted text. Supports stemming ("develop" → "developer", "developing").          |
+| `shotext search`         | Interactive fuzzy finder (powered by [skim](https://github.com/lotabout/skim)) over all indexed screenshots.    |
+| `shotext list`           | List all indexed screenshots. Add `-v` for dates and text snippets.                                             |
+| `shotext view <target>`  | Open a screenshot in a native GUI viewer with extracted text, tagging, and delete. Accepts a file path or hash. |
+| `shotext tag <target>`   | Add, remove, or list tags on a screenshot. Tags are persisted and searchable.                                   |
+| `shotext x`              | Launch the experimental Insights dashboard — a full GUI for browsing, searching, and viewing screenshots.       |
+| `shotext config`         | Show the current configuration. Use `-e` to open it in your `$EDITOR`.                                          |
+
+## Tagging
+
+Screenshots can be tagged for easy organisation and filtering. Tags are persisted in the database and indexed in
+Tantivy, so they show up in search results.
+
+```bash
+# Add tags (accepts a file path or a blake3 hash)
+shotext tag ~/Desktop/Screenshot\ 2025-04-23.png --add work --add meeting
+
+# Remove a tag
+shotext tag <hash> --remove meeting
+
+# List current tags
+shotext tag <hash>
+```
+
+Tags are also available in both the `view` and `x` GUIs — you can add and remove them directly from the interface.
 
 ## Experimental: Insights Dashboard (`shotext x`)
 
@@ -103,6 +125,8 @@ The `x` command launches a native desktop GUI that brings together browsing, sea
 - **Live search** — type in the search bar and results filter in real-time using Tantivy full-text search, with a
   substring fallback
 - **Keyboard shortcuts** — `⌘F` to focus search, `↑`/`↓` arrows to navigate the list
+- **Tagging** — add and remove tags directly from the text panel; tags are persisted and searchable
+- **Delete** — permanently remove a screenshot from the index, database, and disk (with confirmation)
 - **Lazy image loading** — only the selected screenshot is loaded into memory
 - **Collapsible text drawer** — the OCR text panel slides out from the right and can be closed/reopened
 - **Virtualised scroll** — the sidebar only renders visible rows, keeping things smooth even with thousands of
