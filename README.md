@@ -57,6 +57,12 @@ using the following command:
 cargo install shotext
 ```
 
+If you want to update `shotext` to the latest version, execute the following command:
+
+```bash
+shotext update
+```
+
 ## Quick Start
 
 ```bash
