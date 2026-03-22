@@ -9,6 +9,7 @@ struct DashboardEntry {
     path: String,
     content: String,
     created_at: String,
+    tags: Vec<String>,
 }
 
 /// The currently loaded image for the detail view.
@@ -35,6 +36,7 @@ struct ShotextDashboard {
     text_panel_open: bool,
     focus_search: bool,
     confirm_delete: Option<usize>, // entry index pending deletion
+    tag_input: String,             // text field for adding new tags
 }
 
 impl ShotextDashboard {
@@ -52,6 +54,7 @@ impl ShotextDashboard {
                 path: r.path,
                 content: r.content,
                 created_at: r.created_at,
+                tags: r.tags,
             })
             .collect();
         let mut records = entries;
@@ -74,6 +77,7 @@ impl ShotextDashboard {
             text_panel_open: true,
             focus_search: false,
             confirm_delete: None,
+            tag_input: String::new(),
         })
     }
 
@@ -359,6 +363,65 @@ impl eframe::App for ShotextDashboard {
                             .id_salt("text_scroll")
                             .auto_shrink([false, false])
                             .show(ui, |ui| {
+                                // ── Tags section ──
+                                ui.add_space(4.0);
+                                ui.strong("🏷 Tags");
+                                ui.add_space(2.0);
+
+                                // Show existing tags as removable chips
+                                let mut tag_to_remove: Option<String> = None;
+                                ui.horizontal_wrapped(|ui| {
+                                    for tag in &self.all_entries[entry_idx].tags {
+                                        let btn = ui.button(format!("{} ✕", tag));
+                                        if btn.on_hover_text("Click to remove tag").clicked() {
+                                            tag_to_remove = Some(tag.clone());
+                                        }
+                                    }
+                                });
+
+                                // Remove tag if clicked
+                                if let Some(tag) = tag_to_remove {
+                                    let hash = self.all_entries[entry_idx].hash.clone();
+                                    if let Ok(Some(record)) = db::remove_tag(&self.db, &hash, &tag) {
+                                        self.all_entries[entry_idx].tags = record.tags.clone();
+                                        if let Err(e) = search::reindex_document(
+                                            &mut self.tantivy_writer, &hash, &record,
+                                        ) {
+                                            colours::warn(&format!("Failed to reindex: {e}"));
+                                        }
+                                    }
+                                }
+
+                                // Add new tag input
+                                ui.horizontal(|ui| {
+                                    let response = ui.add(
+                                        egui::TextEdit::singleline(&mut self.tag_input)
+                                            .hint_text("New tag…")
+                                            .desired_width(ui.available_width() - 50.0),
+                                    );
+                                    let enter_pressed = response.lost_focus()
+                                        && ui.input(|i| i.key_pressed(egui::Key::Enter));
+
+                                    if (ui.button("+").clicked() || enter_pressed)
+                                        && !self.tag_input.trim().is_empty()
+                                    {
+                                        let new_tag = self.tag_input.trim().to_string();
+                                        self.tag_input.clear();
+                                        let hash = self.all_entries[entry_idx].hash.clone();
+                                        if let Ok(Some(record)) = db::add_tag(&self.db, &hash, &new_tag) {
+                                            self.all_entries[entry_idx].tags = record.tags.clone();
+                                            if let Err(e) = search::reindex_document(
+                                                &mut self.tantivy_writer, &hash, &record,
+                                            ) {
+                                                colours::warn(&format!("Failed to reindex: {e}"));
+                                            }
+                                        }
+                                    }
+                                });
+
+                                ui.separator();
+
+                                // ── Extracted text ──
                                 ui.add(
                                     egui::TextEdit::multiline(
                                         &mut self.all_entries[entry_idx].content,

@@ -42,6 +42,20 @@ pub enum Commands {
     /// Experimental UI
     X,
 
+    /// Add, remove, or list tags on a screenshot
+    Tag {
+        /// The hash or file path of the screenshot
+        target: String,
+
+        /// Add one or more tags
+        #[arg(short, long)]
+        add: Vec<String>,
+
+        /// Remove one or more tags
+        #[arg(short, long)]
+        remove: Vec<String>,
+    },
+
     /// Initialise or show current configuration
     Config {
         #[arg(short, long)]

@@ -119,7 +119,13 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                     match search::interactive_search(&records) {
                         Some(idx) => {
                             let r = &records[idx];
-                            launch_viewer(&r.path, r.content.clone())?;
+                            let vt = ViewTarget {
+                                path: r.path.clone(),
+                                content: r.content.clone(),
+                                hash: r.hash.clone(),
+                                tags: r.tags.clone(),
+                            };
+                            launch_viewer(&vt, db, &search_index)?;
                         }
                         None => colours::info("Search cancelled."),
                     }
@@ -128,8 +134,8 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
             Ok(())
         }
         Commands::View { target } => {
-            let (path, text) = resolve_view_target(&target, &db)?;
-            launch_viewer(&path, text)?;
+            let vt = resolve_view_target(&target, &db)?;
+            launch_viewer(&vt, db, &search_index)?;
             Ok(())
         }
         Commands::X => {
@@ -143,6 +149,42 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
                 records.len()
             ));
             experimental_ui::launch_dashboard(records, search_index, db)?;
+            Ok(())
+        }
+        Commands::Tag { target, add, remove } => {
+            let hash = resolve_hash(&target, &db)?;
+
+            // Need a writer for re-indexing
+            let mut tantivy_writer =
+                search::writer(&search_index).map_err(|e| AppError::Search(e.to_string()))?;
+
+            // Add tags
+            for tag in &add {
+                if let Some(record) = db::add_tag(&db, &hash, tag)? {
+                    search::reindex_document(&mut tantivy_writer, &hash, &record)?;
+                    colours::success(&format!("  + added tag \"{}\"", tag));
+                }
+            }
+
+            // Remove tags
+            for tag in &remove {
+                if let Some(record) = db::remove_tag(&db, &hash, tag)? {
+                    search::reindex_document(&mut tantivy_writer, &hash, &record)?;
+                    colours::success(&format!("  − removed tag \"{}\"", tag));
+                }
+            }
+
+            // If no add/remove flags, just list current tags
+            if add.is_empty() && remove.is_empty() {
+                if let Some(record) = db::get_record(&db, &hash)? {
+                    if record.tags.is_empty() {
+                        colours::info("No tags on this screenshot.");
+                    } else {
+                        colours::info(&format!("Tags: {}", record.tags.join(", ")));
+                    }
+                }
+            }
+
             Ok(())
         }
         Commands::Config { edit } => {
@@ -182,12 +224,20 @@ pub fn run(cli: Cli, config: Config) -> Result<(), AppError> {
     }
 }
 
-/// Resolve a view target to a `(file_path, extracted_text)` pair.
+/// Resolved view target with all data needed by the viewer.
+struct ViewTarget {
+    path: String,
+    content: String,
+    hash: String,
+    tags: Vec<String>,
+}
+
+/// Resolve a view target to all metadata needed for the viewer.
 ///
 /// The target can be:
 /// - A file path to a PNG (hashes the file and looks up text in sled)
 /// - A blake3 hash (looks up the record directly in sled)
-fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), AppError> {
+fn resolve_view_target(target: &str, db: &sled::Db) -> Result<ViewTarget, AppError> {
     let path = std::path::Path::new(target);
 
     if path.exists() && path.is_file() {
@@ -195,18 +245,30 @@ fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), 
         let hash = blake3::hash(&bytes).to_hex().to_string();
 
         if let Some(record) = db::get_record(db, &hash)? {
-            return Ok((target.to_string(), record.content));
+            return Ok(ViewTarget {
+                path: target.to_string(),
+                content: record.content,
+                hash,
+                tags: record.tags,
+            });
         }
 
         // File exists but hasn't been indexed yet
-        return Ok((
-            target.to_string(),
-            "(not yet indexed — run `shotext ingest` first)".to_string(),
-        ));
+        return Ok(ViewTarget {
+            path: target.to_string(),
+            content: "(not yet indexed — run `shotext ingest` first)".to_string(),
+            hash,
+            tags: Vec::new(),
+        });
     }
 
     if let Some(record) = db::get_record(db, target)? {
-        return Ok((record.path, record.content));
+        return Ok(ViewTarget {
+            path: record.path,
+            content: record.content,
+            hash: target.to_string(),
+            tags: record.tags,
+        });
     }
 
     Err(AppError::GuiError(format!(
@@ -215,13 +277,52 @@ fn resolve_view_target(target: &str, db: &sled::Db) -> Result<(String, String), 
     )))
 }
 
-/// Read the image from disk and open the egui viewer window.
-fn launch_viewer(path: &str, text: String) -> Result<(), AppError> {
-    let image_bytes = std::fs::read(path)
-        .map_err(|e| AppError::GuiError(format!("Failed to read image {}: {}", path, e)))?;
+/// Resolve a target (file path or hash) into the blake3 hash key used in the database.
+fn resolve_hash(target: &str, db: &sled::Db) -> Result<String, AppError> {
+    let path = std::path::Path::new(target);
 
-    colours::info(&format!("Opening viewer for: {}", path));
-    let v = viewer::ShotViewer::new(path, text, image_bytes);
+    if path.exists() && path.is_file() {
+        let bytes = std::fs::read(path)?;
+        let hash = blake3::hash(&bytes).to_hex().to_string();
+        if db::key_exists(db, &hash)? {
+            return Ok(hash);
+        }
+        return Err(AppError::Database(format!(
+            "File exists but is not indexed: '{}'. Run `shotext ingest` first.",
+            target
+        )));
+    }
+
+    // Assume it's a hash
+    if db::key_exists(db, target)? {
+        return Ok(target.to_string());
+    }
+
+    Err(AppError::Database(format!(
+        "Not found: '{}' — provide a file path or a known hash",
+        target
+    )))
+}
+
+/// Read the image from disk and open the egui viewer window.
+fn launch_viewer(
+    vt: &ViewTarget,
+    db: sled::Db,
+    search_index: &tantivy::Index,
+) -> Result<(), AppError> {
+    let image_bytes = std::fs::read(&vt.path)
+        .map_err(|e| AppError::GuiError(format!("Failed to read image {}: {}", vt.path, e)))?;
+
+    colours::info(&format!("Opening viewer for: {}", vt.path));
+    let v = viewer::ShotViewer::new(
+        &vt.path,
+        vt.content.clone(),
+        image_bytes,
+        vt.hash.clone(),
+        vt.tags.clone(),
+        db,
+        search_index,
+    )?;
     v.launch().map_err(|e| AppError::GuiError(e.to_string()))?;
     Ok(())
 }

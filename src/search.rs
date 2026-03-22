@@ -26,6 +26,7 @@ lazy_static! {
             "created_at",
             DateOptions::default().set_fast().set_stored().set_indexed(),
         );
+        schema_builder.add_text_field("tags", TEXT | STORED);
         schema_builder.build()
     };
 }
@@ -36,6 +37,7 @@ pub struct SearchResult {
     pub path: String,
     pub content: String,
     pub created_at: String,
+    pub tags: Vec<String>,
 }
 
 /// Opens an existing Tantivy index or creates a new one at `path`.
@@ -57,11 +59,13 @@ pub fn index_document(
     path: &str,
     content: &str,
     created_at_str: &str,
+    tags: &[String],
 ) -> Result<(), AppError> {
     let path_field = SCHEMA.get_field("path")?;
     let content_field = SCHEMA.get_field("content")?;
     let hash_field = SCHEMA.get_field("hash")?;
     let created_at_field = SCHEMA.get_field("created_at")?;
+    let tags_field = SCHEMA.get_field("tags")?;
 
     let created_at = parse_date_to_tantivy(created_at_str);
 
@@ -70,6 +74,7 @@ pub fn index_document(
     doc.add_text(content_field, content);
     doc.add_text(hash_field, hash);
     doc.add_date(created_at_field, created_at);
+    doc.add_text(tags_field, tags.join(" "));
 
     writer
         .add_document(doc)
@@ -88,6 +93,23 @@ pub fn delete_document(writer: &mut IndexWriter, hash: &str) -> Result<(), AppEr
     Ok(())
 }
 
+/// Re-index a document: delete the old one and add a fresh copy with current data.
+/// Use this after updating tags or other mutable fields.
+pub fn reindex_document(
+    writer: &mut IndexWriter,
+    hash: &str,
+    record: &ShotRecord,
+) -> Result<(), AppError> {
+    let hash_field = SCHEMA.get_field("hash")?;
+    let term = tantivy::Term::from_field_text(hash_field, hash);
+    writer.delete_term(term);
+    index_document(writer, hash, &record.path, &record.content, &record.created_at, &record.tags)?;
+    writer
+        .commit()
+        .map_err(|e| AppError::Search(e.to_string()))?;
+    Ok(())
+}
+
 /// Full-text search over the Tantivy index. Returns up to `limit` results ranked by relevance.
 pub fn query(index: &Index, query_str: &str, limit: usize) -> Result<Vec<SearchResult>, AppError> {
     let reader = index
@@ -96,7 +118,8 @@ pub fn query(index: &Index, query_str: &str, limit: usize) -> Result<Vec<SearchR
     let searcher = reader.searcher();
 
     let content_field = SCHEMA.get_field("content")?;
-    let query_parser = QueryParser::for_index(index, vec![content_field]);
+    let tags_field = SCHEMA.get_field("tags")?;
+    let query_parser = QueryParser::for_index(index, vec![content_field, tags_field]);
     let parsed = query_parser
         .parse_query(query_str)
         .map_err(|e| AppError::Search(e.to_string()))?;
@@ -115,11 +138,19 @@ pub fn query(index: &Index, query_str: &str, limit: usize) -> Result<Vec<SearchR
             .doc(doc_address)
             .map_err(|e| AppError::Search(e.to_string()))?;
 
+        let tags_str = field_as_str(&doc, tags_field);
+        let tags: Vec<String> = if tags_str.is_empty() {
+            Vec::new()
+        } else {
+            tags_str.split_whitespace().map(String::from).collect()
+        };
+
         results.push(SearchResult {
             path: field_as_str(&doc, path_field),
             content: field_as_str(&doc, content_field),
             hash: field_as_str(&doc, hash_field),
             created_at: field_as_date_string(&doc, created_at_field),
+            tags,
         });
     }
 
@@ -159,6 +190,7 @@ pub fn all_records(db: &Db) -> Vec<SearchResult> {
                 path: record.path,
                 content: record.content,
                 created_at: record.created_at,
+                tags: record.tags,
             })
         })
         .collect()
@@ -220,6 +252,9 @@ pub fn print_results(results: &[SearchResult]) {
         println!();
         colours::success(&format!("  📄 {}", r.path));
         colours::info(&format!("     Date: {}", r.created_at));
+        if !r.tags.is_empty() {
+            colours::info(&format!("     Tags: {}", r.tags.join(", ")));
+        }
         println!("     Text: {}", ocr::truncate(&r.content, 200));
     }
     println!();

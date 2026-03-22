@@ -15,11 +15,13 @@ use crate::ocr;
 use crate::search;
 
 /// Metadata stored in sled for each ingested screenshot.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ShotRecord {
     pub path: String,
     pub content: String,
     pub created_at: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 impl ShotRecord {
@@ -28,6 +30,7 @@ impl ShotRecord {
             path,
             content,
             created_at,
+            tags: Vec::new(),
         }
     }
 
@@ -162,6 +165,7 @@ pub fn run(
             &record.path,
             &record.content,
             &record.created_at,
+            &record.tags,
         ) {
             colours::warn(&format!(
                 "  ✗ Search index failed for {}: {}",
@@ -228,6 +232,7 @@ pub fn process_single_file(
         &record.path,
         &record.content,
         &record.created_at,
+        &record.tags,
     )?;
 
     let snippet = ocr::truncate(&record.content, 60);
