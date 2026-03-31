@@ -14,6 +14,7 @@ pub mod experimental_ui;
 pub mod ingest;
 pub mod ocr;
 pub mod search;
+pub mod theme;
 pub mod viewer;
 pub mod watch;
 

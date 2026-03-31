@@ -2,6 +2,9 @@ use eframe::egui;
 use std::sync::Arc;
 
 use crate::error::AppError;
+use crate::theme::{
+    apply_theme, MUTED_RED, MUTED_TEAL, QUIET_AMBER, SURFACE, TEXT_PRIMARY, TEXT_SECONDARY,
+};
 use crate::{colours, db, ocr, search};
 
 struct DashboardEntry {
@@ -240,9 +243,12 @@ impl eframe::App for ShotextDashboard {
             .resizable(true)
             .default_width(320.0)
             .min_width(220.0)
+            .frame(
+                egui::Frame::NONE
+                    .fill(SURFACE)
+                    .inner_margin(egui::Margin::same(8)),
+            )
             .show(ctx, |ui| {
-                ui.add_space(8.0);
-
                 // ── Search bar ──
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 6.0;
@@ -270,7 +276,7 @@ impl eframe::App for ShotextDashboard {
                         self.all_entries.len()
                     ))
                     .size(11.0)
-                    .weak(),
+                    .color(TEXT_SECONDARY),
                 );
                 ui.separator();
 
@@ -298,11 +304,17 @@ impl eframe::App for ShotextDashboard {
                             let snippet = ocr::truncate(&entry.content, 60).replace('\n', " ");
 
                             let response = ui.push_id(row_idx, |ui| {
+                                let bg = if is_selected {
+                                    MUTED_TEAL.gamma_multiply(0.25)
+                                } else {
+                                    egui::Color32::TRANSPARENT
+                                };
                                 let frame = egui::Frame::NONE
-                                    .fill(if is_selected {
-                                        ui.visuals().selection.bg_fill
+                                    .fill(bg)
+                                    .stroke(if is_selected {
+                                        egui::Stroke::new(1.0, MUTED_TEAL.gamma_multiply(0.5))
                                     } else {
-                                        egui::Color32::TRANSPARENT
+                                        egui::Stroke::NONE
                                     })
                                     .corner_radius(6.0)
                                     .inner_margin(egui::Margin::same(6));
@@ -313,15 +325,26 @@ impl eframe::App for ShotextDashboard {
                                     ui.label(
                                         egui::RichText::new(format!("📄 {}", filename))
                                             .strong()
-                                            .size(13.0),
+                                            .size(13.0)
+                                            .color(if is_selected {
+                                                QUIET_AMBER
+                                            } else {
+                                                TEXT_PRIMARY
+                                            }),
                                     );
 
                                     ui.label(
-                                        egui::RichText::new(&entry.created_at).size(10.0).weak(),
+                                        egui::RichText::new(&entry.created_at)
+                                            .size(10.0)
+                                            .color(TEXT_SECONDARY),
                                     );
 
                                     if !snippet.is_empty() {
-                                        ui.label(egui::RichText::new(&snippet).size(10.5).weak());
+                                        ui.label(
+                                            egui::RichText::new(&snippet)
+                                                .size(10.5)
+                                                .color(TEXT_SECONDARY),
+                                        );
                                     }
                                 })
                             });
@@ -340,6 +363,11 @@ impl eframe::App for ShotextDashboard {
                     .resizable(true)
                     .default_width(350.0)
                     .min_width(200.0)
+                    .frame(
+                        egui::Frame::NONE
+                            .fill(SURFACE)
+                            .inner_margin(egui::Margin::same(8)),
+                    )
                     .show(ctx, |ui| {
                         ui.horizontal(|ui| {
                             ui.strong("Extracted Text");
@@ -454,20 +482,14 @@ impl eframe::App for ShotextDashboard {
 
                 // Toolbar
                 ui.horizontal(|ui| {
-                    ui.heading(format!("📸 {}", filename));
+                    ui.heading(egui::RichText::new(format!("📸 {}", filename)).color(QUIET_AMBER));
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         // Delete button
                         if self.confirm_delete == Some(entry_idx) {
-                            ui.label(
-                                egui::RichText::new("Delete permanently?")
-                                    .color(egui::Color32::from_rgb(255, 100, 100)),
-                            );
+                            ui.label(egui::RichText::new("Delete permanently?").color(MUTED_RED));
                             if ui
-                                .button(
-                                    egui::RichText::new("Yes, delete")
-                                        .color(egui::Color32::from_rgb(255, 80, 80)),
-                                )
+                                .button(egui::RichText::new("Yes, delete").color(MUTED_RED))
                                 .clicked()
                             {
                                 self.delete_entry(entry_idx);
@@ -499,7 +521,7 @@ impl eframe::App for ShotextDashboard {
                 ui.label(
                     egui::RichText::new(format!("{}  •  {}", created_at, path))
                         .size(11.0)
-                        .weak(),
+                        .color(TEXT_SECONDARY),
                 );
                 ui.separator();
 
@@ -569,6 +591,7 @@ pub fn launch_dashboard(
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
+            apply_theme(&cc.egui_ctx);
             Ok(Box::new(dashboard))
         }),
     )

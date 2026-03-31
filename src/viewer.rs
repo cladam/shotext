@@ -2,6 +2,7 @@ use eframe::egui;
 use std::sync::Arc;
 
 use crate::error::AppError;
+use crate::theme::{apply_theme, MUTED_RED};
 use crate::{colours, db, search};
 
 pub struct ShotViewer {
@@ -59,6 +60,7 @@ impl ShotViewer {
             options,
             Box::new(|cc| {
                 egui_extras::install_image_loaders(&cc.egui_ctx);
+                apply_theme(&cc.egui_ctx);
                 Ok(Box::new(self))
             }),
         )
@@ -108,15 +110,9 @@ impl eframe::App for ShotViewer {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if self.confirm_delete {
-                        ui.label(
-                            egui::RichText::new("Delete permanently?")
-                                .color(egui::Color32::from_rgb(255, 100, 100)),
-                        );
+                        ui.label(egui::RichText::new("Delete permanently?").color(MUTED_RED));
                         if ui
-                            .button(
-                                egui::RichText::new("Yes, delete")
-                                    .color(egui::Color32::from_rgb(255, 80, 80)),
-                            )
+                            .button(egui::RichText::new("Yes, delete").color(MUTED_RED))
                             .clicked()
                         {
                             self.perform_delete();
